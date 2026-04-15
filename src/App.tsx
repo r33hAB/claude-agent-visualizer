@@ -232,7 +232,7 @@ export function App() {
             );
           })}
 
-          <PostProcessing focusAgent={selectedAgent !== null} />
+          <PostProcessing />
         </PerformanceProvider>
       </SceneRoot>
 
