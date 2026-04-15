@@ -39,27 +39,63 @@ async function runCli(...args: string[]): Promise<string> {
 /**
  * Parse the CLI "agent list" text output into structured data.
  * The CLI outputs a table like:
- *   ID         | Type      | Status  | Domain
- *   agent-001  | coder     | active  | default
+ *   | ID | Type            | Status | Created     | Last Acti... |
+ *   |    | coder           | idle   | 11:55:14 AM | N/A          |
+ * Note: ID column is often empty. We use type + index as fallback ID.
  */
 function parseAgentList(output: string): RawAgent[] {
   const agents: RawAgent[] = [];
   const lines = output.split('\n');
+  const typeCounts = new Map<string, number>();
 
   for (const line of lines) {
-    // Look for lines with pipe-separated values (table rows)
-    if (!line.includes('|') || line.includes('---')) continue;
-    const parts = line.split('|').map(s => s.trim());
-    if (parts.length < 3) continue;
+    if (!line.includes('|') || line.includes('---') || line.includes('+--')) continue;
+    const parts = line.split('|').map(s => s.trim()).filter(s => s !== '');
+    if (parts.length < 2) continue;
     // Skip header row
-    if (parts[0] === 'ID' || parts[0] === 'Agent' || parts[0] === 'Name') continue;
-    if (!parts[0] || parts[0].startsWith('+')) continue;
+    if (parts[0] === 'ID' || parts[0] === 'Type') continue;
+    if (parts[0].startsWith('+')) continue;
+
+    // The columns are: ID, Type, Status, Created, Last Activity
+    // ID is often empty, so detect by checking if first field looks like a type
+    const knownTypes = ['coder','reviewer','tester','researcher','coordinator','architect',
+      'analyst','optimizer','security-auditor','security-architect','memory-specialist',
+      'swarm-specialist','performance-engineer','core-architect','test-architect'];
+
+    let id = '';
+    let type = '';
+    let status = 'idle';
+
+    if (knownTypes.some(t => parts[0].startsWith(t))) {
+      // ID was empty — parts[0] is actually the type
+      type = parts[0].replace('...', '');
+      status = (parts[1] || 'idle').toLowerCase();
+    } else if (parts[0] && parts.length >= 3) {
+      // ID is present
+      id = parts[0];
+      type = parts[1].replace('...', '');
+      status = (parts[2] || 'idle').toLowerCase();
+    } else {
+      continue;
+    }
+
+    // Generate unique ID from type if not present
+    if (!id) {
+      const count = (typeCounts.get(type) ?? 0) + 1;
+      typeCounts.set(type, count);
+      id = `${type}-${count}`;
+    }
+
+    // Reconstruct full type name from truncated
+    if (type === 'security-aud') type = 'security-auditor';
+    if (type === 'security-arc') type = 'security-architect';
+    if (type === 'performance-') type = 'performance-engineer';
 
     agents.push({
-      id: parts[0],
-      name: parts[1] || parts[0],
-      type: parts[2] || 'coder',
-      status: (parts[3] || 'active').toLowerCase(),
+      id,
+      name: type.charAt(0).toUpperCase() + type.slice(1).replace(/-/g, ' '),
+      type,
+      status,
     });
   }
 
