@@ -5,22 +5,26 @@
   <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
 </p>
 
-# Claude Agent Visualizer
-
-A real-time 3D visualization of AI agent swarms. Watch voxel characters sit at workstations, type on keyboards, scan monitors, and collaborate through animated interaction beams -- all driven by live agent data over WebSocket.
-
-Built with React Three Fiber, Three.js, and Express.
+<h1 align="center">DevStage</h1>
+<p align="center"><strong>Watch your project come to life.</strong></p>
+<p align="center">A 3D studio where your AI agents perform live — coding, reviewing, planning, and debugging on stage while you watch the show.</p>
 
 ---
 
-## Features
+## What Is This?
 
-### 10 Specialized Agent Types
+Every time Claude Code spawns subagents to work on your project, DevStage puts them on stage. Each agent gets a desk, a chair, tools of their trade, and a role to play. You watch them type, review, gesture at whiteboards, and hand off work to each other — all in real time.
 
-Each agent category has a unique workstation, color palette, head mod, hand tools, and animation style.
+When they finish? They take a bow and walk off stage.
 
-| Agent | Workstation | Behavior |
-|-------|------------|----------|
+---
+
+## The Cast
+
+10 performer types, each with their own workstation, props, and animation style.
+
+| Performer | Their Stage | What You See |
+|-----------|-----------|--------------|
 | **Coder** | Triple-monitor L-desk, mechanical keyboard | Hunched typing, head scanning monitors |
 | **Reviewer** | Document desk with stamp | Mouse scanning, document review |
 | **Planner** | Standing desk + whiteboard | Gesturing at board, pointing at sticky notes |
@@ -32,46 +36,49 @@ Each agent category has a unique workstation, color palette, head mod, hand tool
 | **Debugger** | Messy workbench, circuit board, magnifier | Hunched over examining components |
 | **Designer** | Tilted drafting table, mood board | Drawing motions, palette reference |
 
-### Skeletal Animation System
+### Animation System
 
-14-joint character rig with layered animation:
+14-joint skeletal rig with layered animation:
 
-- **Base pose** -- idle, working, walking, celebrating, error, enter/exit
-- **Category pose** -- per-role overrides (coder hunches, planner gestures, security scans)
-- **Ambient motion** -- breathing, micro-sway, head drift, weight shifting
-- **Seated system** -- smooth sit/stand transitions, bent legs, arms targeting desk surface
-- **Hand tools** -- role-specific items that animate with the character's wrist joints
+- **Base pose** — idle, working, walking, celebrating, error, enter/exit
+- **Role pose** — per-performer overrides (coder hunches, planner gestures, security scans)
+- **Ambient motion** — breathing, micro-sway, head drift, weight shifting
+- **Seated system** — smooth sit/stand transitions, arms targeting desk
+- **Props** — role-specific hand tools that animate with wrist joints
+- **Walk-off** — completed agents stand up and exit the stage after 5 seconds
 
-### Real-Time Agent Tracking
+---
 
-Three operating modes:
+## Show Modes
 
-| Mode | Flag | Source |
-|------|------|--------|
-| **Demo** | *(default)* | Auto-seeds sample agents with scripted interactions |
-| **Push** | `--push` | Register agents via REST API -- only shows what you send |
-| **Live** | `--live` | Bridges to a running claude-flow daemon via MCP |
-
-### Visual Effects
-
-- Interaction beams between collaborating agents
-- Per-agent progress rings
-- Particle field background
-- Post-processing bloom and ambient occlusion
-- Floor grid with agent shadows
-- Status-reactive lighting (error pulse, completion glow)
+| Mode | Flag | What Happens |
+|------|------|-------------|
+| **Preview Night** | *(default)* | Demo agents auto-populate with scripted interactions |
+| **Live Show** | `--push` | You control the stage — only agents you register appear |
+| **Full Production** | `--live` | Bridges to a running [claude-flow](https://github.com/ruvnet/claude-flow) daemon |
 
 ---
 
 ## Quick Start
 
 ```bash
+git clone https://github.com/r33hAB/claude-agent-visualizer.git devstage
+cd devstage
 npm install
 npm run build
 npx tsx server/index.ts
 ```
 
-Open **http://localhost:3847** -- demo agents appear automatically.
+Open **http://localhost:3847** — the preview show starts automatically.
+
+### From a Release
+
+```bash
+unzip devstage-v1.0.0.zip
+cd devstage-v1.0.0
+npm install --production
+npx tsx server/index.ts
+```
 
 ### Development
 
@@ -83,130 +90,161 @@ npm run start      # Both concurrently
 
 ---
 
-## API
+## Add to Claude Code
 
-### Push Mode
+Drop this into your `~/.claude/CLAUDE.md` and every Claude Code session will register its agents on stage:
 
-Start with `--push` to accept agents via REST:
+```markdown
+# DevStage
 
-```bash
-npx tsx server/index.ts --push
+When spawning subagents during ANY task, register them with DevStage.
+
+Start DevStage (if not running):
+  curl -s http://localhost:3847/health || (cd /path/to/devstage && npm run build && npx tsx server/index.ts --push &)
+  Open http://localhost:3847
+
+Register agent:
+  curl -s -X POST http://localhost:3847/api/agent -H "Content-Type: application/json" \
+    -d '{"id":"AGENT_ID","name":"NAME","type":"TYPE","status":"active","task":"DESCRIPTION"}'
+
+Update progress (send only what changed):
+  curl -s -X POST http://localhost:3847/api/agent -H "Content-Type: application/json" \
+    -d '{"id":"AGENT_ID","progress":50,"log":"Halfway done"}'
+
+Agent completes:
+  curl -s -X POST http://localhost:3847/api/agent -H "Content-Type: application/json" \
+    -d '{"id":"AGENT_ID","status":"complete","progress":100}'
+
+Agent error:
+  curl -s -X POST http://localhost:3847/api/agent -H "Content-Type: application/json" \
+    -d '{"id":"AGENT_ID","status":"error","log":"Build failed"}'
+
+Interaction between agents:
+  curl -s -X POST http://localhost:3847/api/interaction -H "Content-Type: application/json" \
+    -d '{"sourceAgentId":"ID1","targetAgentId":"ID2","type":"task_handoff"}'
+
+Types: coder, reviewer, tester, researcher, planner, security-auditor, coordinator, devops, debugger, designer
+Statuses: active, idle, complete, error
+Interaction types: task_handoff, review_request, review_complete, coordinator_delegation, error_escalation
+
+Stop: kill $(lsof -ti:3847) 2>/dev/null
 ```
 
-#### Register / Update an Agent
+### How It Works
 
-```bash
-# Create
-curl -X POST http://localhost:3847/api/agent \
-  -H "Content-Type: application/json" \
-  -d '{"id":"agent-1","name":"Coder","type":"coder","status":"active","task":"Building auth module"}'
-
-# Update (incremental -- only send changed fields)
-curl -X POST http://localhost:3847/api/agent \
-  -H "Content-Type: application/json" \
-  -d '{"id":"agent-1","progress":75,"log":"Tests passing"}'
-
-# Complete
-curl -X POST http://localhost:3847/api/agent \
-  -H "Content-Type: application/json" \
-  -d '{"id":"agent-1","status":"complete","progress":100}'
-```
-
-#### Record an Interaction
-
-```bash
-curl -X POST http://localhost:3847/api/interaction \
-  -H "Content-Type: application/json" \
-  -d '{"sourceAgentId":"agent-1","targetAgentId":"agent-2","type":"task_handoff"}'
-```
-
-#### Agent Types
-
-```
-coder  reviewer  planner  security-auditor  researcher
-coordinator  tester  devops  debugger  designer
-```
-
-#### Statuses
-
-```
-active  idle  complete  error  spawning  terminated
-```
-
-#### Interaction Types
-
-```
-task_handoff  review_request  review_complete
-coordinator_delegation  error_escalation
-```
-
-### Live Mode
-
-Connects to a running [claude-flow](https://github.com/ruvnet/claude-flow) daemon:
-
-```bash
-npx tsx server/index.ts --live
-```
-
-Polls agent state and swarm status via MCP bridge every 1.5s.
+1. Start DevStage in `--push` mode (empty stage, waiting for performers)
+2. Claude Code reads your CLAUDE.md instructions
+3. When it spawns subagents, it registers each one via the REST API
+4. Agents appear on stage, sit at their desks, and start working
+5. Progress updates animate in real time
+6. When agents complete, they celebrate briefly, then walk off stage
+7. Errored agents flash red, then exit
 
 ---
 
-## Controls
+## Stage Controls
 
 | Input | Action |
 |-------|--------|
 | **WASD / Arrow keys** | Move camera |
 | **Mouse drag** | Rotate view |
 | **Scroll wheel** | Zoom in/out |
-| **Click agent** | Open detail panel |
+| **Click performer** | Open detail panel |
 | **Shift** | Fast camera movement |
 | **?** | Toggle keybinds overlay |
 
 ---
 
-## Architecture
+## Visual Effects
+
+- Interaction beams between collaborating performers
+- Per-agent progress rings
+- Particle field background
+- Post-processing bloom and ambient occlusion
+- Floor grid with shadows
+- Status-reactive lighting (error pulse, completion glow)
+
+---
+
+## Backstage (Architecture)
 
 ```
-claude-agent-visualizer/
+devstage/
   src/
     scene/
-      AgentNode.tsx         # Orchestrates character + station + effects
+      AgentNode.tsx         # Orchestrates performer + station + effects
       VoxelCharacter.tsx    # 14-joint skeletal rig, all animations
       Station3D.tsx         # 10 workstation types + chair + monitor
       WalkingAgent.tsx      # Locomotion state machine
-      agentVisuals.ts       # Color palettes per category
+      agentVisuals.ts       # Color palettes per role
       effects/              # Beams, particles, ripples, holo displays
     components/             # UI panels, controls, overlays
     hooks/
       useAgentData.ts       # WebSocket client
     types/
-      agent.ts              # Shared types for agent, interaction, swarm
+      agent.ts              # Shared types
   server/
     index.ts                # Express + WebSocket server
-    mcp-bridge.ts           # claude-flow MCP integration
-    agent-categorizer.ts    # Maps agent type strings to categories
+    mcp-bridge.ts           # claude-flow integration
+    agent-categorizer.ts    # Maps agent type strings to roles
     cli-poller.ts           # Daemon status polling
 ```
 
 ---
 
-## Integration with Claude Code
+## REST API Reference
 
-Add to your `~/.claude/CLAUDE.md` to register subagents with the visualizer during any task:
+### Register / Update a Performer
 
-```markdown
-## Agent Visualizer
-
-Register agents:
-curl -s -X POST http://localhost:3847/api/agent \
+```bash
+curl -X POST http://localhost:3847/api/agent \
   -H "Content-Type: application/json" \
-  -d '{"id":"AGENT_ID","name":"NAME","type":"TYPE","status":"active","task":"DESCRIPTION"}'
+  -d '{"id":"agent-1","name":"Coder","type":"coder","status":"active","task":"Building auth module"}'
+```
 
-Update progress:
-curl -s -X POST http://localhost:3847/api/agent \
+The API is incremental — only send fields that changed:
+
+```bash
+curl -X POST http://localhost:3847/api/agent \
   -H "Content-Type: application/json" \
-  -d '{"id":"AGENT_ID","progress":50,"log":"Halfway done"}'
+  -d '{"id":"agent-1","progress":75,"log":"Tests passing"}'
+```
+
+### Record an Interaction
+
+```bash
+curl -X POST http://localhost:3847/api/interaction \
+  -H "Content-Type: application/json" \
+  -d '{"sourceAgentId":"agent-1","targetAgentId":"agent-2","type":"review_request"}'
+```
+
+### Other Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/agents` | List all performers on stage |
+| `DELETE` | `/api/agent/:id` | Remove a performer immediately |
+| `DELETE` | `/api/agents` | Clear the stage |
+| `GET` | `/health` | Server status |
+
+### Performer Types
+
+```
+coder  reviewer  planner  security-auditor  researcher
+coordinator  tester  devops  debugger  designer
+```
+
+### Statuses
+
+```
+active  idle  complete  error  spawning  terminated
+```
+
+### Interaction Types
+
+```
+task_handoff  review_request  review_complete
+coordinator_delegation  error_escalation
 ```
 
 ---

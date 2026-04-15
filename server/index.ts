@@ -16,6 +16,8 @@ const POLL_INTERVAL_MS = 1500;
 const MAX_PUSHED_AGENTS = 100;
 const MAX_INTERACTIONS = 30;
 const AGENT_ID_PATTERN = /^[a-zA-Z0-9_.-]+$/;
+const AGENT_TTL_MS = 5000; // Time before completed/errored agents are removed
+const AGENT_EXIT_DELAY_MS = 3000; // Delay before transitioning to 'terminated'
 
 const mode = process.argv.includes('--live') ? 'live'
   : process.argv.includes('--push') ? 'push'
@@ -24,8 +26,41 @@ const mode = process.argv.includes('--live') ? 'live'
 // ─── Push-based agent registry ──────────────────────────────────────
 const pushedAgents = new Map<string, AgentState>();
 const agentStartTimes = new Map<string, number>();
+const agentRemovalTimers = new Map<string, NodeJS.Timeout>();
 const pushedInteractions: InteractionEvent[] = [];
 let interactionIdCounter = 0;
+
+/** Schedule an agent for walk-off and removal after TTL */
+function scheduleAgentRemoval(id: string): void {
+  // Don't double-schedule
+  if (agentRemovalTimers.has(id)) return;
+
+  // After AGENT_EXIT_DELAY_MS, transition to 'terminated' (triggers exit animation)
+  const timer = setTimeout(() => {
+    const agent = pushedAgents.get(id);
+    if (agent && (agent.status === 'complete' || agent.status === 'error')) {
+      agent.status = 'terminated';
+    }
+    // After remaining time, remove entirely
+    setTimeout(() => {
+      pushedAgents.delete(id);
+      agentStartTimes.delete(id);
+      agentRemovalTimers.delete(id);
+      console.log(`[ttl] Removed ${id} from stage`);
+    }, AGENT_TTL_MS - AGENT_EXIT_DELAY_MS);
+  }, AGENT_EXIT_DELAY_MS);
+
+  agentRemovalTimers.set(id, timer);
+}
+
+/** Cancel a pending removal (e.g. if agent is reactivated) */
+function cancelAgentRemoval(id: string): void {
+  const timer = agentRemovalTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    agentRemovalTimers.delete(id);
+  }
+}
 
 function validateAgentId(id: unknown): id is string {
   return typeof id === 'string' && id.length > 0 && id.length < 128 && AGENT_ID_PATTERN.test(id);
@@ -201,7 +236,16 @@ async function main(): Promise<void> {
     if (existing) {
       if (name !== undefined) existing.name = String(name);
       if (type !== undefined) { existing.type = String(type); existing.category = categorizeAgent(String(type)); }
-      if (status !== undefined) existing.status = status;
+      if (status !== undefined) {
+        existing.status = status;
+        // Schedule removal for completed/errored agents
+        if (status === 'complete' || status === 'error') {
+          scheduleAgentRemoval(id);
+        } else if (status === 'active' || status === 'idle' || status === 'spawning') {
+          // Agent reactivated — cancel any pending removal
+          cancelAgentRemoval(id);
+        }
+      }
       if (progress !== undefined) existing.progress = progress;
       if (task !== undefined) existing.taskDescription = String(task);
       if (dependencies !== undefined && Array.isArray(dependencies)) existing.dependencies = dependencies.map(String);
@@ -231,6 +275,11 @@ async function main(): Promise<void> {
         dependents: Array.isArray(dependents) ? dependents.map(String) : [],
       });
       agentStartTimes.set(id, Date.now());
+      // If created already complete/error, schedule removal
+      const initialStatus = status || 'active';
+      if (initialStatus === 'complete' || initialStatus === 'error') {
+        scheduleAgentRemoval(String(id));
+      }
       console.log(`[api] + ${id} (${agentType}) "${task || ''}"`);
       res.json({ ok: true, agent: id, action: 'created' });
     }
@@ -239,6 +288,7 @@ async function main(): Promise<void> {
   app.delete('/api/agent/:id', (req, res) => {
     const { id } = req.params;
     if (pushedAgents.has(id)) {
+      cancelAgentRemoval(id);
       pushedAgents.delete(id);
       agentStartTimes.delete(id);
       res.json({ ok: true });
@@ -267,6 +317,7 @@ async function main(): Promise<void> {
   app.get('/api/agents', (_req, res) => res.json(Object.fromEntries(pushedAgents)));
 
   app.delete('/api/agents', (_req, res) => {
+    for (const id of agentRemovalTimers.keys()) cancelAgentRemoval(id);
     pushedAgents.clear();
     agentStartTimes.clear();
     pushedInteractions.length = 0;
@@ -301,7 +352,7 @@ async function main(): Promise<void> {
 
   httpServer.listen(port, () => {
     console.log('');
-    console.log(`  Agent Visualizer: http://localhost:${port}`);
+    console.log(`  DevStage: http://localhost:${port}`);
     console.log(`  Mode: ${mode.toUpperCase()}`);
     console.log(`  API:  POST http://localhost:${port}/api/agent`);
     console.log('');
@@ -310,6 +361,7 @@ async function main(): Promise<void> {
 
   const shutdown = () => {
     clearInterval(pollLoop);
+    for (const id of agentRemovalTimers.keys()) cancelAgentRemoval(id);
     for (const ws of clients) ws.close();
     httpServer.close(() => process.exit(0));
   };
