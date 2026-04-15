@@ -126,28 +126,21 @@ function Monitor({
 
   return (
     <group position={position} rotation={rotation}>
-      {/* Flip monitor to face -Z (toward the character behind the desk) */}
-      <group rotation={[0, Math.PI, 0]}>
-        {/* Monitor bezel */}
-        <mesh position={[0, 0, -0.02]}>
-          <boxGeometry args={[size[0] + 0.06, size[1] + 0.06, 0.03]} />
-          <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.6} />
-        </mesh>
-        {/* Screen */}
-        <mesh ref={ref} position={[0, 0, 0.01]}>
-          <boxGeometry args={[size[0], size[1], 0.01]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={0.5}
-          />
-        </mesh>
-        {/* Monitor stand */}
-        <mesh position={[0, -(size[1] / 2) - 0.08, -0.04]}>
-          <boxGeometry args={[0.06, 0.12, 0.06]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.5} />
-        </mesh>
-      </group>
+      {/* Monitor bezel */}
+      <mesh position={[0, 0, -0.02]}>
+        <boxGeometry args={[size[0] + 0.06, size[1] + 0.06, 0.03]} />
+        <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.6} />
+      </mesh>
+      {/* Screen */}
+      <mesh ref={ref} position={[0, 0, 0.01]}>
+        <boxGeometry args={[size[0], size[1], 0.01]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+      </mesh>
+      {/* Monitor stand */}
+      <mesh position={[0, -(size[1] / 2) - 0.08, -0.04]}>
+        <boxGeometry args={[0.06, 0.12, 0.06]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.5} />
+      </mesh>
     </group>
   );
 }

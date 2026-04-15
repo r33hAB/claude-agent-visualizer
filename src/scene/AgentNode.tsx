@@ -61,8 +61,8 @@ export default function AgentNode({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
-      {/* Station in front of character */}
-      <group position={[position[0], position[1], position[2] + 5]} scale={3}>
+      {/* Station at home position, no scale — sits under/around character */}
+      <group position={position}>
         <Station3D
           category={agentState.category}
           progress={agentState.progress}
@@ -70,8 +70,8 @@ export default function AgentNode({
         />
       </group>
 
-      {/* Progress ring at ground, scaled to wrap the whole area */}
-      <group position={[position[0], position[1] + 0.05, position[2] + 2]}>
+      {/* Progress ring at ground */}
+      <group position={[position[0], position[1] + 0.05, position[2]]}>
         <ProgressRing3D progress={agentState.progress} />
       </group>
 
@@ -86,14 +86,14 @@ export default function AgentNode({
 
           return (
             <>
-              {/* Character stands BEHIND the desk, facing it */}
+              {/* Character stands on platform */}
               <group position={[0, 0.5, 0]}>
                 <VoxelCharacter
                   category={agentState.category}
                   animationState={finalAnim}
                   speedMultiplier={speedMultiplier}
                 />
-                {/* Label well above head */}
+                {/* Label above head */}
                 <group position={[0, 7, 0]}>
                   <AgentLabel
                     name={agentState.name}

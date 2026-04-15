@@ -15,8 +15,8 @@ interface ProgressRing3DProps {
   progress: number; // 0-100, negative for error
 }
 
-const RING_RADIUS = 5;
-const TUBE_RADIUS = 0.08;
+const RING_RADIUS = 2.5;
+const TUBE_RADIUS = 0.06;
 const RADIAL_SEGMENTS = 16;
 const TUBULAR_SEGMENTS = 64;
 const TICK_COUNT = 24;
