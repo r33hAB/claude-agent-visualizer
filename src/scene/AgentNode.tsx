@@ -1,5 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useState, useCallback } from 'react';
 import { useCursor } from '@react-three/drei';
 import type { AgentState, AnimationState } from '../types/agent';
 import VoxelCharacter from './VoxelCharacter';
@@ -27,6 +26,11 @@ const STATUS_TO_ANIMATION: Record<AgentState['status'], AnimationState> = {
   terminated: 'exiting',
 };
 
+const CHARACTER_WORLD_Y = 1.92;
+const STATION_Z_OFFSET = 1.2;
+const STATION_SCALE = 2.5;
+const STATION_Y_OFFSET = 0.7;
+
 export default function AgentNode({
   agentState,
   position,
@@ -35,14 +39,12 @@ export default function AgentNode({
   onSelect,
   onWalkComplete,
 }: AgentNodeProps) {
-  const timeRef = useRef(0);
   const [hovered, setHovered] = useState(false);
 
   useCursor(hovered);
 
-  useFrame((_, delta) => { timeRef.current += delta; });
-
   const baseAnimState = STATUS_TO_ANIMATION[agentState.status];
+  const stationAnimState: AnimationState = walkTarget ? 'idle' : baseAnimState;
   const speedMultiplier = 0.5 + (agentState.progress / 100) * 1.5;
 
   const handlePointerDown = useCallback(
@@ -61,12 +63,16 @@ export default function AgentNode({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
-      {/* Station in front of character */}
-      <group position={[position[0], position[1], position[2] + 5]} scale={2}>
+      <mesh position={[position[0], position[1] + 0.02, position[2] + 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[3.5, 32]} />
+        <meshBasicMaterial color="#020617" transparent opacity={hovered ? 0.24 : 0.16} depthWrite={false} />
+      </mesh>
+
+      <group position={[position[0], position[1] + STATION_Y_OFFSET, position[2] + STATION_Z_OFFSET]} scale={STATION_SCALE}>
         <Station3D
           category={agentState.category}
           progress={agentState.progress}
-          time={timeRef.current}
+          animationState={stationAnimState}
         />
       </group>
 
@@ -86,13 +92,14 @@ export default function AgentNode({
 
           return (
             <>
-              <group position={[0, 0.5, 0]}>
+              <group position={[0, CHARACTER_WORLD_Y, 0]}>
                 <VoxelCharacter
                   category={agentState.category}
                   animationState={finalAnim}
                   speedMultiplier={speedMultiplier}
+                  seated={!isWalking && (finalAnim === 'working' || finalAnim === 'idle' || finalAnim === 'interacting')}
                 />
-                <group position={[0, 7, 0]}>
+                <group position={[0, 7.2, 0.15]}>
                   <AgentLabel
                     name={agentState.name}
                     progress={agentState.progress}

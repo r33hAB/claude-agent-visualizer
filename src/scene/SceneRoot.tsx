@@ -123,13 +123,13 @@ export function SceneRoot({ swarmEnvironment, children }: SceneRootProps) {
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.3,
+        toneMappingExposure: 1.16,
         powerPreference: 'high-performance',
         failIfMajorPerformanceCaveat: false,
       }}
       style={{ background: '#0a0e1a' }}
       onCreated={({ scene }) => {
-        scene.fog = new THREE.FogExp2('#0a0e1a', 0.002);
+        scene.fog = new THREE.FogExp2('#0a0e1a', 0.0016);
       }}
     >
       <FreeCam />

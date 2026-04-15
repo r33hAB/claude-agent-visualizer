@@ -16,58 +16,80 @@ interface AgentLabelProps {
   status: string;
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  active: '#7dd3fc',
+  idle: '#94a3b8',
+  complete: '#fde68a',
+  error: '#fb7185',
+  spawning: '#c084fc',
+  terminated: '#64748b',
+  walking: '#93c5fd',
+  interacting: '#67e8f9',
+};
+
 export default function AgentLabel({ name, progress, status }: AgentLabelProps) {
   const progressColor = getProgressColor(progress);
   const progressText = progress < 0 ? 'ERR' : `${Math.round(progress)}%`;
+  const statusText = status.replace(/_/g, ' ').toUpperCase();
+  const statusColor = STATUS_COLORS[status] ?? '#9ca3af';
 
   const bgWidth = useMemo(() => {
-    const maxLen = Math.max(name.length, status.length, progressText.length);
-    return Math.max(maxLen * 0.14 + 0.3, 1.2);
-  }, [name, status, progressText]);
+    const maxLen = Math.max(name.length, statusText.length, progressText.length);
+    return Math.max(maxLen * 0.11 + 0.9, 1.65);
+  }, [name, statusText, progressText]);
 
   return (
-    <group position={[0, 2.8, 0]}>
-      <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        {/* Semi-transparent background */}
-        <mesh position={[0, 0.1, -0.01]}>
-          <boxGeometry args={[bgWidth, 0.8, 0.01]} />
-          <meshBasicMaterial color="#000000" transparent opacity={0.4} />
+    <group renderOrder={80}>
+      <Billboard follow lockX={false} lockY={false} lockZ={false} renderOrder={80}>
+        <mesh position={[0, 0.11, -0.035]}>
+          <boxGeometry args={[bgWidth, 0.9, 0.05]} />
+          <meshBasicMaterial color="#040712" transparent opacity={0.82} depthWrite={false} depthTest={false} />
         </mesh>
-
-        {/* Agent name */}
+        <mesh position={[0, 0.45, -0.005]}>
+          <boxGeometry args={[bgWidth - 0.16, 0.035, 0.01]} />
+          <meshBasicMaterial color={progressColor} transparent opacity={0.9} depthWrite={false} depthTest={false} />
+        </mesh>
         <Text
-          fontSize={0.25}
-          color="white"
+          fontSize={0.22}
+          color="#eef4ff"
           anchorY="bottom"
           anchorX="center"
-          position={[0, 0.2, 0]}
+          position={[0, 0.14, 0]}
           font={undefined}
+          outlineWidth={0.018}
+          outlineColor="#020617"
+          depthOffset={-10}
+          renderOrder={81}
         >
           {name}
         </Text>
-
-        {/* Progress */}
         <Text
-          fontSize={0.18}
+          fontSize={0.2}
           color={progressColor}
           anchorY="bottom"
           anchorX="center"
-          position={[0, 0.0, 0]}
+          position={[0, -0.08, 0]}
           font={undefined}
+          outlineWidth={0.016}
+          outlineColor="#020617"
+          depthOffset={-10}
+          renderOrder={81}
         >
           {progressText}
         </Text>
-
-        {/* Status */}
         <Text
-          fontSize={0.14}
-          color="#9ca3af"
+          fontSize={0.12}
+          color={statusColor}
           anchorY="bottom"
           anchorX="center"
-          position={[0, -0.2, 0]}
+          position={[0, -0.3, 0]}
           font={undefined}
+          outlineWidth={0.014}
+          outlineColor="#020617"
+          depthOffset={-10}
+          renderOrder={81}
         >
-          {status}
+          {statusText}
         </Text>
       </Billboard>
     </group>

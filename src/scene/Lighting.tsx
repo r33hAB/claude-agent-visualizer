@@ -58,37 +58,29 @@ export function Lighting({ swarmEnvironment }: LightingProps) {
 
   return (
     <>
-      {/* Strong ambient so nothing is pitch black */}
-      <ambientLight color="#aabbcc" intensity={0.6} />
+      <ambientLight color="#94a7c6" intensity={0.34} />
+      <hemisphereLight color="#dbe7ff" groundColor="#09101e" intensity={0.58} />
+      <directionalLight position={[18, 28, 12]} intensity={1.15} color="#ecf3ff" />
+      <directionalLight position={[-20, 14, -16]} intensity={0.48} color={color} />
 
-      {/* Hemisphere gives directional ambient — sky above, dark below */}
-      <hemisphereLight color="#bbccdd" groundColor="#223344" intensity={0.4} />
-
-      {/* Main overhead directional — illuminates everything evenly */}
-      <directionalLight position={[15, 40, 15]} intensity={0.8} color="#ccddee" />
-      <directionalLight position={[-15, 40, -15]} intensity={0.4} color="#aabbcc" />
-
-      {/* Neon ceiling tubes */}
       {TUBE_POSITIONS.map((pos, i) => (
         <NeonTube key={i} position={pos} color={color} />
       ))}
 
-      {/* Wide center spotlight flooding the main area */}
       <spotLight
-        position={[0, 30, 0]}
-        angle={1.2}
-        penumbra={0.8}
-        intensity={1.5}
-        color="#ddeeff"
-        distance={80}
-        decay={1.5}
+        position={[0, 24, 10]}
+        angle={0.6}
+        penumbra={0.95}
+        intensity={1.15}
+        color="#f8fbff"
+        distance={70}
+        decay={1.35}
       />
 
-      {/* 4 ground-level fill lights at the agent area corners */}
-      <pointLight position={[-15, 3, -15]} color="#4466aa" intensity={1} distance={30} decay={2} />
-      <pointLight position={[15, 3, -15]} color="#4466aa" intensity={1} distance={30} decay={2} />
-      <pointLight position={[-15, 3, 15]} color="#4466aa" intensity={1} distance={30} decay={2} />
-      <pointLight position={[15, 3, 15]} color="#4466aa" intensity={1} distance={30} decay={2} />
+      <pointLight position={[-15, 3, -15]} color="#1d4ed8" intensity={0.52} distance={28} decay={2} />
+      <pointLight position={[15, 3, -15]} color="#0ea5e9" intensity={0.46} distance={28} decay={2} />
+      <pointLight position={[-15, 3, 15]} color={color} intensity={0.44} distance={28} decay={2} />
+      <pointLight position={[15, 3, 15]} color="#60a5fa" intensity={0.48} distance={28} decay={2} />
     </>
   );
 }

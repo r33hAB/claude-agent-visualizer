@@ -1,29 +1,21 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { AgentCategory } from '../types/agent';
+import { AgentCategory, type AnimationState } from '../types/agent';
+import { AGENT_PALETTES, type AgentPalette } from './agentVisuals';
 
 interface Station3DProps {
   category: AgentCategory;
   progress: number;
-  time: number;
+  animationState: AnimationState;
 }
-
-const CATEGORY_COLORS: Record<AgentCategory, { primary: string; accent: string }> = {
-  [AgentCategory.Coder]:       { primary: '#3b82f6', accent: '#60a5fa' },
-  [AgentCategory.Reviewer]:    { primary: '#f59e0b', accent: '#fbbf24' },
-  [AgentCategory.Planner]:     { primary: '#8b5cf6', accent: '#a78bfa' },
-  [AgentCategory.Security]:    { primary: '#ef4444', accent: '#f87171' },
-  [AgentCategory.Researcher]:  { primary: '#10b981', accent: '#34d399' },
-  [AgentCategory.Coordinator]: { primary: '#ec4899', accent: '#f472b6' },
-  [AgentCategory.Tester]:      { primary: '#14b8a6', accent: '#2dd4bf' },
-  [AgentCategory.DevOps]:      { primary: '#f97316', accent: '#fb923c' },
-  [AgentCategory.Debugger]:    { primary: '#6366f1', accent: '#818cf8' },
-  [AgentCategory.Designer]:    { primary: '#d946ef', accent: '#e879f9' },
-};
 
 const DESK_COLOR = '#1a1f2e';
 const EQUIP_COLOR = '#2a2f3e';
+
+function normalizeProgress(progress: number) {
+  return THREE.MathUtils.clamp(progress / 100, 0, 1);
+}
 
 // ---------- Shared: Desk Material ----------
 
@@ -37,68 +29,119 @@ function EquipMat() {
 
 // ---------- Base Platform ----------
 
-function BasePlatform({ accentColor, progress }: { accentColor: string; progress: number }) {
-  const accent = new THREE.Color(accentColor);
+function BasePlatform({ colors, progress }: { colors: AgentPalette; progress: number }) {
+  const accent = new THREE.Color(colors.glow);
+  const surface = new THREE.Color(colors.accent);
+  const rim = new THREE.Color(colors.surface);
 
   // Progress-based status light color
   let statusColor: string;
-  if (progress < 0.3) statusColor = '#ef4444';
-  else if (progress < 0.7) statusColor = '#eab308';
+  if (progress < 30) statusColor = '#ef4444';
+  else if (progress < 70) statusColor = '#eab308';
   else statusColor = '#22c55e';
   const statusC = new THREE.Color(statusColor);
 
   const edges: [number, number, number, number, number, number][] = [
-    [0, 0.08, 1.95, 4, 0.03, 0.04],
-    [0, 0.08, -1.95, 4, 0.03, 0.04],
-    [1.95, 0.08, 0, 0.04, 0.03, 4],
-    [-1.95, 0.08, 0, 0.04, 0.03, 4],
+    [0, 0.115, 1.52, 3.02, 0.024, 0.035],
+    [0, 0.115, -1.52, 3.02, 0.024, 0.035],
+    [1.52, 0.115, 0, 0.035, 0.024, 3.02],
+    [-1.52, 0.115, 0, 0.035, 0.024, 3.02],
   ];
   const corners: [number, number, number][] = [
-    [1.85, 0, 1.85], [-1.85, 0, 1.85],
-    [1.85, 0, -1.85], [-1.85, 0, -1.85],
+    [1.42, 0, 1.42], [-1.42, 0, 1.42],
+    [1.42, 0, -1.42], [-1.42, 0, -1.42],
   ];
 
   return (
     <group>
-      {/* Main platform */}
-      <mesh position={[0, 0.075, 0]}>
-        <boxGeometry args={[4, 0.15, 4]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.3} metalness={0.7} />
+      <mesh position={[0, 0.03, 0]}>
+        <boxGeometry args={[3.55, 0.06, 3.55]} />
+        <meshStandardMaterial color="#050913" roughness={0.88} metalness={0.1} />
       </mesh>
-      {/* Subtle height variation ridge */}
-      <mesh position={[0, 0.16, 0]}>
-        <boxGeometry args={[3.6, 0.02, 3.6]} />
-        <meshStandardMaterial color="#131b2e" roughness={0.4} metalness={0.6} />
+      <mesh position={[0, 0.095, 0]}>
+        <boxGeometry args={[3.2, 0.08, 3.2]} />
+        <meshStandardMaterial color="#0d1528" roughness={0.48} metalness={0.52} />
       </mesh>
-      {/* Edge strips */}
+      <mesh position={[0, 0.145, 0]}>
+        <boxGeometry args={[2.62, 0.022, 2.62]} />
+        <meshStandardMaterial color="#111c33" roughness={0.24} metalness={0.62} />
+      </mesh>
+      <mesh position={[0, 0.148, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.04, 1.18, 40]} />
+        <meshStandardMaterial
+          color={surface}
+          emissive={accent}
+          emissiveIntensity={0.24}
+          transparent
+          opacity={0.86}
+        />
+      </mesh>
       {edges.map(([px, py, pz, sx, sy, sz], i) => (
         <mesh key={`edge-${i}`} position={[px, py, pz]}>
           <boxGeometry args={[sx, sy, sz]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.8} />
+          <meshStandardMaterial color={surface} emissive={accent} emissiveIntensity={0.65} />
         </mesh>
       ))}
-      {/* Corner pylons */}
       {corners.map(([cx, , cz], i) => (
-        <group key={`pylon-${i}`} position={[cx, 0.15, cz]}>
-          {/* Pylon body */}
-          <mesh position={[0, 0.2, 0]}>
-            <boxGeometry args={[0.08, 0.4, 0.08]} />
-            <meshStandardMaterial color="#1e293b" roughness={0.3} metalness={0.6} />
+        <group key={`pylon-${i}`} position={[cx, 0.145, cz]}>
+          <mesh position={[0, 0.12, 0]}>
+            <boxGeometry args={[0.06, 0.24, 0.06]} />
+            <meshStandardMaterial color="#182235" roughness={0.35} metalness={0.52} />
           </mesh>
-          {/* Glowing tip */}
-          <mesh position={[0, 0.42, 0]}>
-            <sphereGeometry args={[0.04, 8, 8]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.0} />
+          <mesh position={[0, 0.26, 0]}>
+            <sphereGeometry args={[0.032, 8, 8]} />
+            <meshStandardMaterial color={rim} emissive={accent} emissiveIntensity={0.95} />
           </mesh>
         </group>
       ))}
-      {/* Status light on front */}
-      <mesh position={[0, 0.12, 1.98]}>
-        <sphereGeometry args={[0.06, 8, 8]} />
-        <meshStandardMaterial color={statusC} emissive={statusC} emissiveIntensity={0.9} />
+      <mesh position={[0, 0.165, 1.55]}>
+        <boxGeometry args={[0.42, 0.03, 0.08]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.3} metalness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.166, 1.58]}>
+        <boxGeometry args={[0.28, 0.015, 0.02]} />
+        <meshStandardMaterial color={statusC} emissive={statusC} emissiveIntensity={0.95} />
       </mesh>
     </group>
   );
+}
+
+interface StationMotion {
+  active: boolean;
+  working: boolean;
+  interacting: boolean;
+  celebrating: boolean;
+  error: boolean;
+  activity: number;
+  pulse: number;
+  sweep: number;
+  hover: number;
+  press: number;
+  spin: number;
+}
+
+function getStationMotion(animationState: AnimationState, time: number): StationMotion {
+  const working = animationState === 'working';
+  const interacting = animationState === 'interacting';
+  const celebrating = animationState === 'celebrating';
+  const error = animationState === 'error';
+  const active = working || interacting || celebrating || error;
+  const activity = error ? 1 : celebrating ? 0.95 : working ? 1 : interacting ? 0.75 : 0.28;
+  const pulseSpeed = error ? 10 : working ? 8.5 : interacting ? 5.5 : 2.5;
+
+  return {
+    active,
+    working,
+    interacting,
+    celebrating,
+    error,
+    activity,
+    pulse: Math.sin(time * pulseSpeed) * 0.5 + 0.5,
+    sweep: Math.sin(time * (active ? 2.1 : 0.9)),
+    hover: Math.sin(time * (active ? 3.4 : 1.4)),
+    press: Math.max(0, Math.sin(time * (working ? 12 : interacting ? 8 : 3))),
+    spin: time * (working ? 2.2 : interacting ? 1.5 : 0.45),
+  };
 }
 
 // ---------- Monitor with flicker ----------
@@ -108,38 +151,78 @@ function Monitor({
   rotation,
   size,
   color,
-  time,
+  activity = 0.4,
 }: {
   position: [number, number, number];
   rotation?: [number, number, number];
   size: [number, number];
   color: THREE.Color;
-  time: number;
+  activity?: number;
 }) {
   const ref = useRef<THREE.Mesh>(null);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (!ref.current) return;
     const mat = ref.current.material as THREE.MeshStandardMaterial;
-    mat.emissiveIntensity = 0.5 + Math.sin(time * 3 + position[0] * 10) * 0.1;
+    const t = clock.elapsedTime;
+    mat.emissiveIntensity = 0.28 + activity * 0.45 + Math.sin(t * (2.8 + activity * 4) + position[0] * 6) * 0.08;
+    ref.current.position.z = 0.01 + Math.sin(t * (4 + activity * 3) + position[0] * 4) * 0.002;
   });
 
   return (
     <group position={position} rotation={rotation}>
-      {/* Monitor bezel */}
-      <mesh position={[0, 0, -0.02]}>
-        <boxGeometry args={[size[0] + 0.06, size[1] + 0.06, 0.03]} />
-        <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.6} />
+      {/* Flip monitor to face -Z (toward the character) */}
+      <group rotation={[0, Math.PI, 0]}>
+        {/* Monitor bezel */}
+        <mesh position={[0, 0, -0.02]}>
+          <boxGeometry args={[size[0] + 0.06, size[1] + 0.06, 0.03]} />
+          <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.6} />
+        </mesh>
+        {/* Screen */}
+        <mesh ref={ref} position={[0, 0, 0.01]}>
+          <boxGeometry args={[size[0], size[1], 0.01]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+        </mesh>
+        {/* Monitor stand */}
+        <mesh position={[0, -(size[1] / 2) - 0.08, -0.04]}>
+          <boxGeometry args={[0.06, 0.12, 0.06]} />
+          <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.5} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// ---------- Chair ----------
+
+function Chair({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      {/* Seat */}
+      <mesh position={[0, 0.10, 0]}>
+        <boxGeometry args={[0.4, 0.04, 0.4]} />
+        <meshStandardMaterial color="#16192a" roughness={0.5} metalness={0.45} />
       </mesh>
-      {/* Screen */}
-      <mesh ref={ref} position={[0, 0, 0.01]}>
-        <boxGeometry args={[size[0], size[1], 0.01]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+      {/* Backrest */}
+      <mesh position={[0, 0.3, -0.18]}>
+        <boxGeometry args={[0.36, 0.38, 0.04]} />
+        <meshStandardMaterial color="#16192a" roughness={0.5} metalness={0.45} />
       </mesh>
-      {/* Monitor stand */}
-      <mesh position={[0, -(size[1] / 2) - 0.08, -0.04]}>
-        <boxGeometry args={[0.06, 0.12, 0.06]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.5} />
+      {/* Legs */}
+      {[[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]].map(([x, z], i) => (
+        <mesh key={`cleg-${i}`} position={[x, -0.08, z]}>
+          <boxGeometry args={[0.04, 0.32, 0.04]} />
+          <meshStandardMaterial color="#111827" roughness={0.4} metalness={0.5} />
+        </mesh>
+      ))}
+      {/* Armrests */}
+      <mesh position={[-0.22, 0.18, 0.02]}>
+        <boxGeometry args={[0.04, 0.04, 0.28]} />
+        <meshStandardMaterial color="#111827" roughness={0.4} metalness={0.5} />
+      </mesh>
+      <mesh position={[0.22, 0.18, 0.02]}>
+        <boxGeometry args={[0.04, 0.04, 0.28]} />
+        <meshStandardMaterial color="#111827" roughness={0.4} metalness={0.5} />
       </mesh>
     </group>
   );
@@ -147,9 +230,35 @@ function Monitor({
 
 // ========== CODER STATION ==========
 
-function CoderStation({ accent, time }: { accent: THREE.Color; time: number }) {
+function CoderStation({
+  accent,
+  animationState,
+}: {
+  accent: THREE.Color;
+  animationState: AnimationState;
+}) {
+  const keyRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const mouseRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const motion = getStationMotion(animationState, clock.elapsedTime);
+    for (let i = 0; i < keyRefs.current.length; i++) {
+      const mesh = keyRefs.current[i];
+      if (!mesh) continue;
+      mesh.position.y = 0.5 - motion.press * (0.004 + i * 0.001);
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      mat.emissive = accent;
+      mat.emissiveIntensity = 0.05 + motion.activity * 0.2 + (i === Math.floor(motion.pulse * 3) ? 0.15 : 0);
+    }
+    if (mouseRef.current) {
+      mouseRef.current.position.z = 0.2 + motion.sweep * 0.025;
+      mouseRef.current.rotation.y = motion.sweep * 0.12;
+    }
+  });
+
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.3]} />
       {/* L-shaped desk: main surface */}
       <mesh position={[0, 0.45, 0.3]}>
         <boxGeometry args={[1.8, 0.06, 0.8]} />
@@ -168,11 +277,11 @@ function CoderStation({ accent, time }: { accent: THREE.Color; time: number }) {
         </mesh>
       ))}
       {/* Main wide monitor */}
-      <Monitor position={[0, 0.88, 0.65]} rotation={[-0.15, 0, 0]} size={[1.2, 0.7]} color={accent} time={time} />
+      <Monitor position={[0, 0.88, 0.65]} rotation={[-0.15, 0, 0]} size={[1.2, 0.7]} color={accent} activity={1} />
       {/* Left side monitor */}
-      <Monitor position={[-0.75, 0.82, 0.55]} rotation={[-0.15, 0.3, 0]} size={[0.5, 0.35]} color={accent} time={time} />
+      <Monitor position={[-0.75, 0.82, 0.55]} rotation={[-0.15, 0.3, 0]} size={[0.5, 0.35]} color={accent} activity={0.8} />
       {/* Right side monitor */}
-      <Monitor position={[0.75, 0.82, 0.55]} rotation={[-0.15, -0.3, 0]} size={[0.5, 0.35]} color={accent} time={time} />
+      <Monitor position={[0.75, 0.82, 0.55]} rotation={[-0.15, -0.3, 0]} size={[0.5, 0.35]} color={accent} activity={0.8} />
       {/* Keyboard */}
       <mesh position={[-0.1, 0.49, 0.2]}>
         <boxGeometry args={[0.5, 0.015, 0.18]} />
@@ -180,13 +289,17 @@ function CoderStation({ accent, time }: { accent: THREE.Color; time: number }) {
       </mesh>
       {/* Key rows */}
       {[0, 1, 2].map((row) => (
-        <mesh key={`keys-${row}`} position={[-0.1, 0.5, 0.14 + row * 0.05]}>
+        <mesh
+          key={`keys-${row}`}
+          ref={(el) => { keyRefs.current[row] = el; }}
+          position={[-0.1, 0.5, 0.14 + row * 0.05]}
+        >
           <boxGeometry args={[0.44, 0.006, 0.03]} />
           <meshStandardMaterial color="#475569" roughness={0.6} metalness={0.2} />
         </mesh>
       ))}
       {/* Mouse */}
-      <mesh position={[0.3, 0.49, 0.2]}>
+      <mesh ref={mouseRef} position={[0.3, 0.49, 0.2]}>
         <boxGeometry args={[0.08, 0.02, 0.12]} />
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.3} />
       </mesh>
@@ -222,11 +335,35 @@ function CoderStation({ accent, time }: { accent: THREE.Color; time: number }) {
 
 // ========== REVIEWER STATION ==========
 
-function ReviewerStation({ accent, progress, time }: { accent: THREE.Color; progress: number; time: number }) {
-  // Simple desk with monitor and FLAT document stack (no fancy organizers that break)
-  const docCount = 1 + Math.floor(progress * 4);
+function ReviewerStation({
+  accent,
+  progress,
+  animationState,
+}: {
+  accent: THREE.Color;
+  progress: number;
+  animationState: AnimationState;
+}) {
+  const progressRatio = normalizeProgress(progress);
+  const docCount = 1 + Math.floor(progressRatio * 4);
+  const stampRef = useRef<THREE.Mesh>(null);
+  const topDocRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const motion = getStationMotion(animationState, clock.elapsedTime);
+    if (stampRef.current) {
+      stampRef.current.position.y = 0.49 + motion.press * 0.045;
+      stampRef.current.rotation.z = motion.working ? motion.sweep * 0.06 : 0;
+    }
+    if (topDocRef.current) {
+      topDocRef.current.rotation.z = -0.03 + motion.sweep * 0.035;
+      topDocRef.current.position.x = -0.45 + motion.press * 0.015;
+    }
+  });
+
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.2]} />
       {/* Desk surface */}
       <mesh position={[0, 0.45, 0.3]}>
         <boxGeometry args={[1.4, 0.06, 0.8]} />
@@ -240,10 +377,13 @@ function ReviewerStation({ accent, progress, time }: { accent: THREE.Color; prog
         </mesh>
       ))}
       {/* Monitor */}
-      <Monitor position={[0, 0.88, 0.55]} rotation={[-0.1, 0, 0]} size={[0.8, 0.5]} color={accent} time={time} />
-      {/* FLAT document stack on desk — just boxes lying flat, stacked vertically */}
+      <Monitor position={[0, 0.88, 0.55]} rotation={[-0.1, 0, 0]} size={[0.8, 0.5]} color={accent} activity={0.7} />
       {Array.from({ length: docCount }).map((_, i) => (
-        <mesh key={`doc-${i}`} position={[-0.45, 0.50 + i * 0.015, 0.2]}>
+        <mesh
+          key={`doc-${i}`}
+          ref={i === docCount - 1 ? topDocRef : undefined}
+          position={[-0.45, 0.50 + i * 0.015, 0.2]}
+        >
           <boxGeometry args={[0.3, 0.01, 0.4]} />
           <meshStandardMaterial
             color={['#f5f5dc', '#e2e8f0', '#fef3c7', '#dbeafe', '#fce7f3'][i % 5]}
@@ -251,12 +391,12 @@ function ReviewerStation({ accent, progress, time }: { accent: THREE.Color; prog
         </mesh>
       ))}
       {/* Red stamp on desk */}
-      <mesh position={[0.45, 0.49, 0.2]}>
+      <mesh ref={stampRef} position={[0.45, 0.49, 0.2]}>
         <boxGeometry args={[0.12, 0.04, 0.08]} />
         <meshStandardMaterial color="#dc2626" />
       </mesh>
       {/* Green "approved" stamp mark on top doc */}
-      {progress > 0.7 && (
+      {progressRatio > 0.7 && (
         <mesh position={[-0.45, 0.50 + docCount * 0.015, 0.2]}>
           <boxGeometry args={[0.15, 0.005, 0.08]} />
           <meshStandardMaterial color="#22c55e" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.3} />
@@ -268,7 +408,30 @@ function ReviewerStation({ accent, progress, time }: { accent: THREE.Color; prog
 
 // ========== PLANNER STATION ==========
 
-function PlannerStation({ accent, time }: { accent: THREE.Color; time: number }) {
+function PlannerStation({
+  accent,
+  animationState,
+}: {
+  accent: THREE.Color;
+  animationState: AnimationState;
+}) {
+  const projectorRef = useRef<THREE.Mesh>(null);
+  const cursorRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const motion = getStationMotion(animationState, clock.elapsedTime);
+    if (projectorRef.current) {
+      projectorRef.current.scale.setScalar(0.9 + motion.activity * 0.12 + motion.pulse * 0.06);
+      const mat = projectorRef.current.material as THREE.MeshStandardMaterial;
+      mat.opacity = 0.08 + motion.activity * 0.1;
+    }
+    if (cursorRef.current) {
+      cursorRef.current.position.x = motion.sweep * 0.75;
+      const mat = cursorRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.45 + motion.activity * 0.4;
+    }
+  });
+
   return (
     <group position={[0, 0.15, 0]}>
       {/* Standing desk (taller) */}
@@ -340,7 +503,7 @@ function PlannerStation({ accent, time }: { accent: THREE.Color; time: number })
         <meshStandardMaterial color="#334155" roughness={0.3} metalness={0.7} />
       </mesh>
       {/* Projection cone of light */}
-      <mesh position={[0.3, 0.8, 0.25]}>
+      <mesh ref={projectorRef} position={[0.3, 0.8, 0.25]}>
         <coneGeometry args={[0.15, 0.35, 8, 1, true]} />
         <meshStandardMaterial
           color={accent}
@@ -348,28 +511,46 @@ function PlannerStation({ accent, time }: { accent: THREE.Color; time: number })
           emissiveIntensity={0.3}
           transparent
           opacity={0.15}
-         
         />
       </mesh>
+      <mesh ref={cursorRef} position={[0, 0.32, 0.865]}>
+        <boxGeometry args={[0.1, 0.04, 0.02]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.6} />
+      </mesh>
       {/* Monitor on desk */}
-      <Monitor position={[-0.2, 0.82, 0.5]} rotation={[-0.1, 0, 0]} size={[0.5, 0.35]} color={accent} time={time} />
+      <Monitor position={[-0.2, 0.82, 0.5]} rotation={[-0.1, 0, 0]} size={[0.5, 0.35]} color={accent} activity={0.65} />
     </group>
   );
 }
 
 // ========== SECURITY STATION ==========
 
-function SecurityStation({ accent, time }: { accent: THREE.Color; time: number }) {
+function SecurityStation({
+  accent,
+  animationState,
+}: {
+  accent: THREE.Color;
+  animationState: AnimationState;
+}) {
   const warningRef = useRef<THREE.Mesh>(null);
+  const shieldRef = useRef<THREE.Mesh>(null);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    const motion = getStationMotion(animationState, clock.elapsedTime);
     if (warningRef.current) {
-      warningRef.current.rotation.y = time * 1.5;
+      warningRef.current.rotation.y = motion.spin * (motion.active ? 1.8 : 0.8);
+      const mat = warningRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.4 + motion.activity * 0.6;
+    }
+    if (shieldRef.current) {
+      const mat = shieldRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.2 + motion.activity * 0.35 + motion.pulse * 0.25;
     }
   });
 
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.3]} />
       {/* Reinforced desk (thicker, darker) */}
       <mesh position={[0, 0.42, 0.3]}>
         <boxGeometry args={[1.6, 0.1, 0.8]} />
@@ -390,7 +571,7 @@ function SecurityStation({ accent, time }: { accent: THREE.Color; time: number }
           rotation={[-0.15, -xOff * 0.3, 0]}
           size={[0.3, 0.22]}
           color={accent}
-          time={time}
+          activity={0.6}
         />
       ))}
       {/* Warning light pole */}
@@ -415,7 +596,7 @@ function SecurityStation({ accent, time }: { accent: THREE.Color; time: number }
           <meshStandardMaterial
             color={['#22c55e', '#22c55e', '#eab308', '#22c55e'][i]}
             emissive={new THREE.Color(['#22c55e', '#22c55e', '#eab308', '#22c55e'][i])}
-            emissiveIntensity={0.8 + Math.sin(time * 4 + i * 1.5) * 0.2}
+            emissiveIntensity={0.8}
           />
         </mesh>
       ))}
@@ -431,7 +612,7 @@ function SecurityStation({ accent, time }: { accent: THREE.Color; time: number }
       {/* Shield on stand */}
       <group position={[-0.3, 0.8, -0.6]}>
         {/* Shield body (pentagon-like from overlapping shapes) */}
-        <mesh>
+        <mesh ref={shieldRef}>
           <boxGeometry args={[0.25, 0.3, 0.03]} />
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} />
         </mesh>
@@ -451,23 +632,36 @@ function SecurityStation({ accent, time }: { accent: THREE.Color; time: number }
 
 // ========== RESEARCHER STATION ==========
 
-function ResearcherStation({ accent, time }: { accent: THREE.Color; progress: number; time: number }) {
+function ResearcherStation({
+  accent,
+  animationState,
+}: {
+  accent: THREE.Color;
+  animationState: AnimationState;
+}) {
   const orb1 = useRef<THREE.Mesh>(null);
   const orb2 = useRef<THREE.Mesh>(null);
   const orb3 = useRef<THREE.Mesh>(null);
   const orb4 = useRef<THREE.Mesh>(null);
+  const microscopeRef = useRef<THREE.Mesh>(null);
 
-  useFrame(() => {
-    if (orb1.current) orb1.current.position.y = 1.1 + Math.sin(time * 2) * 0.1;
-    if (orb2.current) orb2.current.position.y = 1.2 + Math.sin(time * 2 + 1.5) * 0.1;
-    if (orb3.current) orb3.current.position.y = 1.0 + Math.sin(time * 2 + 3.0) * 0.1;
-    if (orb4.current) orb4.current.position.y = 1.15 + Math.sin(time * 2 + 4.5) * 0.1;
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const motion = getStationMotion(animationState, t);
+    if (orb1.current) orb1.current.position.y = 1.05 + Math.sin(t * (2 + motion.activity)) * 0.1;
+    if (orb2.current) orb2.current.position.y = 1.16 + Math.sin(t * (2 + motion.activity) + 1.5) * 0.1;
+    if (orb3.current) orb3.current.position.y = 0.98 + Math.sin(t * (2 + motion.activity) + 3.0) * 0.1;
+    if (orb4.current) orb4.current.position.y = 1.12 + Math.sin(t * (2 + motion.activity) + 4.5) * 0.1;
+    if (microscopeRef.current) {
+      microscopeRef.current.rotation.z = -0.16 + motion.sweep * 0.06;
+    }
   });
 
   const bookColors = ['#dc2626', '#2563eb', '#16a34a', '#9333ea', '#f59e0b'];
 
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.25]} />
       {/* Round table */}
       <mesh position={[0, 0.35, 0]}>
         <cylinderGeometry args={[0.8, 0.8, 0.06, 20]} />
@@ -503,7 +697,7 @@ function ResearcherStation({ accent, time }: { accent: THREE.Color; progress: nu
         </mesh>
       ))}
       {/* Microscope body */}
-      <mesh position={[-0.4, 0.48, 0.3]}>
+      <mesh ref={microscopeRef} position={[-0.4, 0.48, 0.3]}>
         <cylinderGeometry args={[0.04, 0.04, 0.2, 8]} />
         <meshStandardMaterial color="#334155" roughness={0.4} metalness={0.6} />
       </mesh>
@@ -548,13 +742,33 @@ function ResearcherStation({ accent, time }: { accent: THREE.Color; progress: nu
 
 // ========== COORDINATOR STATION ==========
 
-function CoordinatorStation({ accent, time }: { accent: THREE.Color; time: number }) {
+function CoordinatorStation({
+  accent,
+  animationState,
+}: {
+  accent: THREE.Color;
+  animationState: AnimationState;
+}) {
   const sphereRef = useRef<THREE.Mesh>(null);
+  const railRef = useRef<THREE.Mesh>(null);
+  const displayRef = useRef<THREE.Mesh>(null);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const motion = getStationMotion(animationState, t);
     if (sphereRef.current) {
-      sphereRef.current.rotation.y = time * 0.5;
-      sphereRef.current.rotation.x = Math.sin(time * 0.3) * 0.1;
+      sphereRef.current.rotation.y = motion.spin;
+      sphereRef.current.rotation.x = Math.sin(t * 0.7) * 0.1;
+      const mat = sphereRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.45 + motion.activity * 0.4;
+    }
+    if (railRef.current) {
+      const mat = railRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.2 + motion.activity * 0.25 + motion.pulse * 0.2;
+    }
+    if (displayRef.current) {
+      const mat = displayRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.2 + motion.activity * 0.3;
     }
   });
 
@@ -609,18 +823,18 @@ function CoordinatorStation({ accent, time }: { accent: THREE.Color; time: numbe
             <meshStandardMaterial
               color={accent}
               emissive={accent}
-              emissiveIntensity={0.8 + Math.sin(time * 3 + i * 2) * 0.2}
+              emissiveIntensity={0.8}
             />
           </mesh>
         </group>
       ))}
       {/* Circular console rail (torus) */}
-      <mesh position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh ref={railRef} position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.9, 0.04, 8, 32]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.3} metalness={0.7} />
       </mesh>
       {/* Status display */}
-      <mesh position={[-0.5, 0.85, 0.6]} rotation={[-0.2, 0.3, 0]}>
+      <mesh ref={displayRef} position={[-0.5, 0.85, 0.6]} rotation={[-0.2, 0.3, 0]}>
         <boxGeometry args={[0.5, 0.35, 0.02]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.4} />
       </mesh>
@@ -635,27 +849,43 @@ function CoordinatorStation({ accent, time }: { accent: THREE.Color; time: numbe
 
 // ========== TESTER STATION ==========
 
-function TesterStation({ accent, progress, time }: { accent: THREE.Color; progress: number; time: number }) {
-  const currentIdx = Math.floor(progress * 6);
+function TesterStation({
+  accent,
+  progress,
+  animationState,
+}: {
+  accent: THREE.Color;
+  progress: number;
+  animationState: AnimationState;
+}) {
+  const progressRatio = normalizeProgress(progress);
+  const currentIdx = progressRatio >= 1 ? -1 : Math.min(5, Math.floor(progressRatio * 6));
   const indicatorRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const probeRefs = useRef<(THREE.Group | null)[]>([]);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    const motion = getStationMotion(animationState, clock.elapsedTime);
     for (let i = 0; i < 6; i++) {
       const mesh = indicatorRefs.current[i];
       if (!mesh) continue;
       const mat = mesh.material as THREE.MeshStandardMaterial;
-      if (i < currentIdx) {
-        mat.emissiveIntensity = 0.7;
+      if (currentIdx === -1 || i < currentIdx) {
+        mat.emissiveIntensity = 0.4 + motion.activity * 0.3;
       } else if (i === currentIdx) {
-        mat.emissiveIntensity = 0.3 + Math.sin(time * 5) * 0.4;
+        mat.emissiveIntensity = 0.25 + motion.activity * 0.25 + motion.pulse * 0.4;
       } else {
         mat.emissiveIntensity = 0.05;
       }
     }
+    probeRefs.current.forEach((probe, i) => {
+      if (!probe) return;
+      probe.position.y = 0.52 + motion.hover * 0.02 * (i === 0 ? 1 : -1);
+    });
   });
 
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.2]} />
       {/* Testing bench */}
       <mesh position={[0, 0.42, 0.3]}>
         <boxGeometry args={[1.4, 0.06, 0.7]} />
@@ -676,7 +906,7 @@ function TesterStation({ accent, progress, time }: { accent: THREE.Color; progre
       {/* 6 indicator lights in a row */}
       {Array.from({ length: 6 }).map((_, i) => {
         let color: string;
-        if (i < currentIdx) color = '#22c55e';
+        if (currentIdx === -1 || i < currentIdx) color = '#22c55e';
         else if (i === currentIdx) color = '#eab308';
         else color = '#374151';
         const c = new THREE.Color(color);
@@ -703,7 +933,7 @@ function TesterStation({ accent, progress, time }: { accent: THREE.Color; progre
       </mesh>
       {/* Test probes */}
       {[[-0.4, '#ef4444'], [-0.25, '#3b82f6']].map(([xOff, col], i) => (
-        <group key={`probe-${i}`}>
+        <group key={`probe-${i}`} ref={(el) => { probeRefs.current[i] = el; }}>
           <mesh position={[xOff as number, 0.52, 0.55]}>
             <cylinderGeometry args={[0.01, 0.01, 0.2, 6]} />
             <meshStandardMaterial color="#64748b" roughness={0.4} metalness={0.5} />
@@ -747,25 +977,41 @@ function TesterStation({ accent, progress, time }: { accent: THREE.Color; progre
 
 // ========== DEVOPS STATION ==========
 
-function DevOpsStation({ accent, progress, time }: { accent: THREE.Color; progress: number; time: number }) {
+function DevOpsStation({
+  accent,
+  progress,
+  animationState,
+}: {
+  accent: THREE.Color;
+  progress: number;
+  animationState: AnimationState;
+}) {
   const buttonRef = useRef<THREE.Mesh>(null);
   const fanRef = useRef<THREE.Mesh>(null);
-  const isDeployed = progress > 0.9;
+  const arrowRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const isDeployed = normalizeProgress(progress) > 0.9;
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const motion = getStationMotion(animationState, t);
     if (buttonRef.current) {
       const mat = buttonRef.current.material as THREE.MeshStandardMaterial;
       mat.emissiveIntensity = isDeployed
-        ? 0.6 + Math.sin(time * 4) * 0.3
-        : 0.15 + Math.sin(time * 2) * 0.1;
+        ? 0.55 + motion.pulse * 0.35
+        : 0.12 + motion.activity * 0.18;
     }
     if (fanRef.current) {
-      fanRef.current.rotation.y = time * 8;
+      fanRef.current.rotation.y = motion.spin * 4;
     }
+    arrowRefs.current.forEach((arrow, i) => {
+      if (!arrow) return;
+      arrow.position.z = -0.06 + ((motion.pulse + i * 0.3) % 1) * 0.08;
+    });
   });
 
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.3]} />
       {/* Server rack cluster: 3 tall boxes side by side */}
       {[-0.35, 0, 0.35].map((xOff, i) => (
         <group key={`rack-${i}`}>
@@ -780,7 +1026,7 @@ function DevOpsStation({ accent, progress, time }: { accent: THREE.Color; progre
               <meshStandardMaterial
                 color="#22c55e"
                 emissive={new THREE.Color('#22c55e')}
-                emissiveIntensity={0.5 + Math.sin(time * 3 + i * 2 + j * 1.3) * 0.5}
+                emissiveIntensity={0.75}
               />
             </mesh>
           ))}
@@ -795,7 +1041,12 @@ function DevOpsStation({ accent, progress, time }: { accent: THREE.Color; progre
       ))}
       {/* Arrow triangles showing flow direction */}
       {[-0.25, 0.25].map((xOff, i) => (
-        <mesh key={`arrow-${i}`} position={[xOff, 0.3, -0.06]} rotation={[0, 0, -Math.PI / 2]}>
+        <mesh
+          key={`arrow-${i}`}
+          ref={(el) => { arrowRefs.current[i] = el; }}
+          position={[xOff, 0.3, -0.06]}
+          rotation={[0, 0, -Math.PI / 2]}
+        >
           <coneGeometry args={[0.04, 0.08, 3]} />
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} />
         </mesh>
@@ -842,9 +1093,37 @@ function DevOpsStation({ accent, progress, time }: { accent: THREE.Color; progre
 
 // ========== DEBUGGER STATION ==========
 
-function DebuggerStation({ accent, time }: { accent: THREE.Color; time: number }) {
+function DebuggerStation({
+  accent,
+  animationState,
+}: {
+  accent: THREE.Color;
+  animationState: AnimationState;
+}) {
+  const lensGroupRef = useRef<THREE.Group>(null);
+  const tipRef = useRef<THREE.Mesh>(null);
+  const traceRefs = useRef<(THREE.Mesh | null)[]>([]);
+
+  useFrame(({ clock }) => {
+    const motion = getStationMotion(animationState, clock.elapsedTime);
+    if (lensGroupRef.current) {
+      lensGroupRef.current.position.x = 0.4 + motion.sweep * 0.08;
+      lensGroupRef.current.position.y = 1.02 + motion.hover * 0.03;
+    }
+    if (tipRef.current) {
+      const mat = tipRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.35 + motion.activity * 0.3 + motion.pulse * 0.25;
+    }
+    traceRefs.current.forEach((trace, i) => {
+      if (!trace) return;
+      const mat = trace.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.12 + motion.activity * 0.12 + (i === Math.floor(motion.pulse * traceRefs.current.length) ? 0.25 : 0);
+    });
+  });
+
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.3]} />
       {/* Messy workbench (slightly rotated) */}
       <mesh position={[0, 0.42, 0.25]} rotation={[0, 0.03, 0]}>
         <boxGeometry args={[1.3, 0.06, 0.7]} />
@@ -874,14 +1153,16 @@ function DebuggerStation({ accent, time }: { accent: THREE.Color; time: number }
         <meshStandardMaterial color="#64748b" roughness={0.4} metalness={0.6} />
       </mesh>
       {/* Magnifying lens (sphere + torus) */}
-      <mesh position={[0.4, 1.05, 0.1]}>
-        <sphereGeometry args={[0.08, 12, 12]} />
-        <meshStandardMaterial color="#bfdbfe" transparent opacity={0.3} roughness={0.1} metalness={0.2} />
-      </mesh>
-      <mesh position={[0.4, 1.05, 0.1]} rotation={[0, 0, 0]}>
-        <torusGeometry args={[0.08, 0.012, 8, 16]} />
-        <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.7} />
-      </mesh>
+      <group ref={lensGroupRef} position={[0.4, 1.05, 0.1]}>
+        <mesh position={[0, 0, 0]}>
+          <sphereGeometry args={[0.08, 12, 12]} />
+          <meshStandardMaterial color="#bfdbfe" transparent opacity={0.3} roughness={0.1} metalness={0.2} />
+        </mesh>
+        <mesh position={[0, 0, 0]} rotation={[0, 0, 0]}>
+          <torusGeometry args={[0.08, 0.012, 8, 16]} />
+          <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.7} />
+        </mesh>
+      </group>
       {/* Oscilloscope-like monitor */}
       <mesh position={[-0.3, 0.58, 0.5]}>
         <boxGeometry args={[0.35, 0.25, 0.15]} />
@@ -920,7 +1201,7 @@ function DebuggerStation({ accent, time }: { accent: THREE.Color; time: number }
         <meshStandardMaterial color="#78716c" roughness={0.5} metalness={0.4} />
       </mesh>
       {/* Soldering iron tip (glowing orange) */}
-      <mesh position={[0.22, 0.48, 0.33]} rotation={[0, 0.5, Math.PI / 2]}>
+      <mesh ref={tipRef} position={[0.22, 0.48, 0.33]} rotation={[0, 0.5, Math.PI / 2]}>
         <coneGeometry args={[0.008, 0.04, 6]} />
         <meshStandardMaterial color="#f97316" emissive={new THREE.Color('#f97316')} emissiveIntensity={0.8} />
       </mesh>
@@ -937,22 +1218,50 @@ function DebuggerStation({ accent, time }: { accent: THREE.Color; time: number }
         [0.1, 0.485, 0.0, 0.01, 0.15],
         [-0.05, 0.485, -0.02, 0.01, 0.12],
       ].map(([x, y, z, w, d], i) => (
-        <mesh key={`trace-${i}`} position={[x, y, z]}>
+        <mesh key={`trace-${i}`} ref={(el) => { traceRefs.current[i] = el; }} position={[x, y, z]}>
           <boxGeometry args={[w, 0.004, d]} />
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} />
         </mesh>
       ))}
       {/* Monitor */}
-      <Monitor position={[0, 0.82, 0.6]} rotation={[-0.15, 0, 0]} size={[0.5, 0.35]} color={accent} time={time} />
+      <Monitor position={[0, 0.82, 0.6]} rotation={[-0.15, 0, 0]} size={[0.5, 0.35]} color={accent} activity={0.7} />
     </group>
   );
 }
 
 // ========== DESIGNER STATION ==========
 
-function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }) {
+function DesignerStation({
+  accent,
+  animationState,
+}: {
+  accent: THREE.Color;
+  animationState: AnimationState;
+}) {
+  const stylusRef = useRef<THREE.Mesh>(null);
+  const tabletRef = useRef<THREE.Mesh>(null);
+  const canvasSplashRefs = useRef<(THREE.Mesh | null)[]>([]);
+
+  useFrame(({ clock }) => {
+    const motion = getStationMotion(animationState, clock.elapsedTime);
+    if (stylusRef.current) {
+      stylusRef.current.position.x = 0.8 + motion.sweep * 0.06;
+      stylusRef.current.position.z = 0.1 + motion.press * 0.04;
+    }
+    if (tabletRef.current) {
+      const mat = tabletRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.16 + motion.activity * 0.18 + motion.pulse * 0.08;
+    }
+    canvasSplashRefs.current.forEach((mesh, i) => {
+      if (!mesh) return;
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.12 + (i === Math.floor(motion.pulse * canvasSplashRefs.current.length) ? 0.26 : 0.06);
+    });
+  });
+
   return (
     <group position={[0, 0.15, 0]}>
+      <Chair position={[0, 0, -0.3]} />
       {/* Tilted drafting table */}
       <mesh position={[0, 0.5, 0.2]} rotation={[0.26, 0, 0]}>
         <boxGeometry args={[1.0, 0.05, 0.7]} />
@@ -986,7 +1295,7 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
           { pos: [-0.05, -0.05, 0.01] as [number, number, number], col: '#eab308', s: 0.06 },
           { pos: [0.1, 0.25, 0.01] as [number, number, number], col: '#22c55e', s: 0.07 },
         ].map((splash, i) => (
-          <mesh key={`splash-${i}`} position={splash.pos}>
+          <mesh key={`splash-${i}`} ref={(el) => { canvasSplashRefs.current[i] = el; }} position={splash.pos}>
             <boxGeometry args={[splash.s, splash.s, 0.02]} />
             <meshStandardMaterial color={splash.col} emissive={new THREE.Color(splash.col)} emissiveIntensity={0.3} />
           </mesh>
@@ -1019,12 +1328,12 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
         </mesh>
       ))}
       {/* Tablet/pen display */}
-      <mesh position={[0.55, 0.48, 0.15]} rotation={[0.15, -0.2, 0]}>
+      <mesh ref={tabletRef} position={[0.55, 0.48, 0.15]} rotation={[0.15, -0.2, 0]}>
         <boxGeometry args={[0.4, 0.28, 0.02]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} />
       </mesh>
       {/* Stylus */}
-      <mesh position={[0.8, 0.47, 0.1]} rotation={[0, 0.3, Math.PI / 6]}>
+      <mesh ref={stylusRef} position={[0.8, 0.47, 0.1]} rotation={[0, 0.3, Math.PI / 6]}>
         <cylinderGeometry args={[0.006, 0.01, 0.18, 6]} />
         <meshStandardMaterial color="#6b7280" roughness={0.4} metalness={0.5} />
       </mesh>
@@ -1054,32 +1363,32 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
 
 // ========== MAIN COMPONENT ==========
 
-export default function Station3D({ category, progress, time }: Station3DProps) {
-  const colors = CATEGORY_COLORS[category];
+export default function Station3D({ category, progress, animationState }: Station3DProps) {
+  const colors = AGENT_PALETTES[category];
   const accent = new THREE.Color(colors.accent);
 
   const equipment = (() => {
     switch (category) {
       case AgentCategory.Coder:
-        return <CoderStation accent={accent} time={time} />;
+        return <CoderStation accent={accent} animationState={animationState} />;
       case AgentCategory.Reviewer:
-        return <ReviewerStation accent={accent} progress={progress} time={time} />;
+        return <ReviewerStation accent={accent} progress={progress} animationState={animationState} />;
       case AgentCategory.Planner:
-        return <PlannerStation accent={accent} time={time} />;
+        return <PlannerStation accent={accent} animationState={animationState} />;
       case AgentCategory.Security:
-        return <SecurityStation accent={accent} time={time} />;
+        return <SecurityStation accent={accent} animationState={animationState} />;
       case AgentCategory.Researcher:
-        return <ResearcherStation accent={accent} progress={progress} time={time} />;
+        return <ResearcherStation accent={accent} animationState={animationState} />;
       case AgentCategory.Coordinator:
-        return <CoordinatorStation accent={accent} time={time} />;
+        return <CoordinatorStation accent={accent} animationState={animationState} />;
       case AgentCategory.Tester:
-        return <TesterStation accent={accent} progress={progress} time={time} />;
+        return <TesterStation accent={accent} progress={progress} animationState={animationState} />;
       case AgentCategory.DevOps:
-        return <DevOpsStation accent={accent} progress={progress} time={time} />;
+        return <DevOpsStation accent={accent} progress={progress} animationState={animationState} />;
       case AgentCategory.Debugger:
-        return <DebuggerStation accent={accent} time={time} />;
+        return <DebuggerStation accent={accent} animationState={animationState} />;
       case AgentCategory.Designer:
-        return <DesignerStation accent={accent} time={time} />;
+        return <DesignerStation accent={accent} animationState={animationState} />;
       default:
         return null;
     }
@@ -1087,7 +1396,7 @@ export default function Station3D({ category, progress, time }: Station3DProps) 
 
   return (
     <group>
-      <BasePlatform accentColor={colors.accent} progress={progress} />
+      <BasePlatform colors={colors} progress={progress} />
       {equipment}
     </group>
   );

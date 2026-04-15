@@ -15,11 +15,11 @@ interface ProgressRing3DProps {
   progress: number; // 0-100, negative for error
 }
 
-const RING_RADIUS = 2.5;
-const TUBE_RADIUS = 0.06;
+const RING_RADIUS = 2.1;
+const TUBE_RADIUS = 0.05;
 const RADIAL_SEGMENTS = 16;
 const TUBULAR_SEGMENTS = 64;
-const TICK_COUNT = 24;
+const TICK_COUNT = 30;
 
 export default function ProgressRing3D({ progress }: ProgressRing3DProps) {
   const progressMatRef = useRef<THREE.MeshStandardMaterial>(null);
@@ -58,7 +58,7 @@ export default function ProgressRing3D({ progress }: ProgressRing3DProps) {
   }, [normalizedProgress]);
 
   const tickBoxGeo = useMemo(
-    () => new THREE.BoxGeometry(0.02, 0.02, 0.06),
+    () => new THREE.BoxGeometry(0.018, 0.018, 0.11),
     [],
   );
 
@@ -94,63 +94,72 @@ export default function ProgressRing3D({ progress }: ProgressRing3DProps) {
   useFrame(({ clock }) => {
     if (!shouldPulse) return;
     const t = Math.sin(clock.elapsedTime * 3) * 0.5 + 0.5; // 0..1
-    const intensity = 1.5 + t * 1.5; // 1.5..3.0
+    const intensity = 1.1 + t * 1.1;
 
     if (progressMatRef.current) {
       progressMatRef.current.emissiveIntensity = intensity;
     }
     if (dotMatRef.current) {
-      dotMatRef.current.emissiveIntensity = intensity + 0.5;
+      dotMatRef.current.emissiveIntensity = intensity + 0.35;
     }
   });
 
   return (
     <group position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      {/* Background ring */}
       <mesh>
         <torusGeometry args={[RING_RADIUS, TUBE_RADIUS, RADIAL_SEGMENTS, TUBULAR_SEGMENTS]} />
         <meshStandardMaterial
-          color="#333333"
-          emissive="#333333"
-          emissiveIntensity={0.1}
+          color="#0f172a"
+          emissive="#1e293b"
+          emissiveIntensity={0.08}
           transparent
-          opacity={0.5}
+          opacity={0.85}
         />
       </mesh>
 
-      {/* Progress arc */}
+      <mesh>
+        <torusGeometry args={[RING_RADIUS - 0.22, 0.016, 8, TUBULAR_SEGMENTS]} />
+        <meshStandardMaterial
+          color="#0b1220"
+          emissive={progressColor}
+          emissiveIntensity={0.05}
+          transparent
+          opacity={0.45}
+        />
+      </mesh>
+
       {arcGeometry && (
         <mesh geometry={arcGeometry}>
           <meshStandardMaterial
             ref={progressMatRef}
             color={progressColor}
             emissive={progressColor}
-            emissiveIntensity={2}
+            emissiveIntensity={1.2}
           />
         </mesh>
       )}
 
-      {/* Leading dot at arc tip */}
       {normalizedProgress > 0 && (
         <mesh position={dotPosition}>
-          <sphereGeometry args={[0.08, 16, 16]} />
+          <sphereGeometry args={[0.07, 14, 14]} />
           <meshStandardMaterial
             ref={dotMatRef}
             color={progressColor}
             emissive={progressColor}
-            emissiveIntensity={3}
+            emissiveIntensity={1.45}
           />
         </mesh>
       )}
 
-      {/* Tick marks */}
       <instancedMesh
         ref={tickMeshRef}
         args={[tickBoxGeo, undefined, TICK_COUNT]}
       >
         <meshStandardMaterial
           emissive="#ffffff"
-          emissiveIntensity={0.5}
+          emissiveIntensity={0.32}
+          transparent
+          opacity={0.95}
         />
       </instancedMesh>
     </group>
