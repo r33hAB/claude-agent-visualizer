@@ -94,7 +94,17 @@ export function App() {
   const [walkCommands, setWalkCommands] = useState<Map<string, WalkInfo>>(new Map());
 
   const agentPositions = useRef(new Map<string, [number, number, number]>());
+  // Prune processed IDs periodically to prevent memory leak
   const processedInteractionIds = useRef(new Set<string>());
+  const pruneCounter = useRef(0);
+  if (++pruneCounter.current > 100) {
+    pruneCounter.current = 0;
+    if (processedInteractionIds.current.size > 200) {
+      // Keep only the last 50 IDs
+      const arr = [...processedInteractionIds.current];
+      processedInteractionIds.current = new Set(arr.slice(-50));
+    }
+  }
 
   // Assign positions
   const agentArray = Array.from(agents.values());

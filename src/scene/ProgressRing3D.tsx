@@ -31,16 +31,21 @@ export default function ProgressRing3D({ progress }: ProgressRing3DProps) {
   const progressColor = getProgressColor(clampedProgress);
   const shouldPulse = clampedProgress > 90 || clampedProgress < 0;
 
+  const prevGeomRef = useRef<THREE.TorusGeometry | null>(null);
   const arcGeometry = useMemo(() => {
+    // Dispose previous geometry to prevent GPU memory leak
+    if (prevGeomRef.current) prevGeomRef.current.dispose();
     const thetaLength = normalizedProgress * Math.PI * 2;
-    if (thetaLength <= 0) return null;
-    return new THREE.TorusGeometry(
+    if (thetaLength <= 0) { prevGeomRef.current = null; return null; }
+    const geom = new THREE.TorusGeometry(
       RING_RADIUS,
       TUBE_RADIUS,
       RADIAL_SEGMENTS,
       TUBULAR_SEGMENTS,
       thetaLength,
     );
+    prevGeomRef.current = geom;
+    return geom;
   }, [normalizedProgress]);
 
   const dotPosition = useMemo(() => {

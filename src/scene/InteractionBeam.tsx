@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -11,97 +11,81 @@ interface InteractionBeamProps {
 }
 
 const PARTICLE_COUNT = 5;
-const TUBULAR_SEGMENTS = 32;
-const TUBE_RADIUS = 0.04;
-const RADIAL_SEGMENTS = 6;
 const SPHERE_RADIUS = 0.06;
 
-export function InteractionBeam({
-  from,
-  to,
-  color,
-  life,
-  maxLife,
-}: InteractionBeamProps) {
+export function InteractionBeam({ from, to, color, life, maxLife }: InteractionBeamProps) {
   const sphereRefs = useRef<(THREE.Mesh | null)[]>([]);
   const tubeRef = useRef<THREE.Mesh>(null);
+  const tubeMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const sphereMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
+
+  const emissiveColor = useMemo(() => new THREE.Color(color), [color]);
 
   const curve = useMemo(() => {
     const start = new THREE.Vector3(...from);
     const end = new THREE.Vector3(...to);
-    const midX = (from[0] + to[0]) / 2;
-    const midY = (from[1] + to[1]) / 2 + 3;
-    const midZ = (from[2] + to[2]) / 2;
-    const control = new THREE.Vector3(midX, midY, midZ);
-    return new THREE.QuadraticBezierCurve3(start, control, end);
+    const mid = new THREE.Vector3(
+      (from[0] + to[0]) / 2,
+      (from[1] + to[1]) / 2 + 3,
+      (from[2] + to[2]) / 2,
+    );
+    return new THREE.QuadraticBezierCurve3(start, mid, end);
   }, [from[0], from[1], from[2], to[0], to[1], to[2]]);
 
   const tubeGeometry = useMemo(() => {
-    return new THREE.TubeGeometry(curve, TUBULAR_SEGMENTS, TUBE_RADIUS, RADIAL_SEGMENTS, false);
+    return new THREE.TubeGeometry(curve, 32, 0.04, 6, false);
   }, [curve]);
 
-  const sphereGeometry = useMemo(() => {
-    return new THREE.SphereGeometry(SPHERE_RADIUS, 8, 8);
-  }, []);
+  // Dispose old geometry on cleanup
+  useEffect(() => {
+    return () => { tubeGeometry.dispose(); };
+  }, [tubeGeometry]);
 
-  const opacity = Math.max(0, 1 - life / maxLife);
+  const sphereGeometry = useMemo(() => new THREE.SphereGeometry(SPHERE_RADIUS, 8, 8), []);
 
-  const tubeMaterial = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      color: new THREE.Color(color),
-      emissive: new THREE.Color(color),
-      emissiveIntensity: 2,
-      transparent: true,
-      opacity,
-    });
-  }, [color, opacity]);
-
-  const sphereMaterial = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      color: new THREE.Color(color),
-      emissive: new THREE.Color(color),
-      emissiveIntensity: 3,
-      transparent: true,
-      opacity,
-    });
-  }, [color, opacity]);
-
+  // Update opacity via refs every frame — no new materials
   useFrame(({ clock }) => {
+    const opacity = Math.max(0, 1 - life / maxLife);
     const time = clock.elapsedTime;
 
-    // Update tube opacity
-    if (tubeRef.current) {
-      const mat = tubeRef.current.material as THREE.MeshStandardMaterial;
-      mat.opacity = Math.max(0, 1 - life / maxLife);
-    }
+    if (tubeMaterialRef.current) tubeMaterialRef.current.opacity = opacity;
+    if (sphereMaterialRef.current) sphereMaterialRef.current.opacity = opacity;
 
-    // Animate particle spheres along the curve
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const mesh = sphereRefs.current[i];
       if (!mesh) continue;
-
       const t = (time * 2 + i * 0.2) % 1;
-      const point = curve.getPoint(t);
-      mesh.position.copy(point);
-
-      const mat = mesh.material as THREE.MeshStandardMaterial;
-      mat.opacity = Math.max(0, 1 - life / maxLife);
+      mesh.position.copy(curve.getPoint(t));
     }
   });
 
   return (
     <group>
-      {/* Energy beam tube */}
-      <mesh ref={tubeRef} geometry={tubeGeometry} material={tubeMaterial} />
-
-      {/* Particle spheres travelling along the beam */}
+      <mesh ref={tubeRef} geometry={tubeGeometry}>
+        <meshStandardMaterial
+          ref={tubeMaterialRef}
+          color={emissiveColor}
+          emissive={emissiveColor}
+          emissiveIntensity={2}
+          transparent
+          opacity={1}
+        />
+      </mesh>
       {Array.from({ length: PARTICLE_COUNT }).map((_, i) => (
         <mesh
-          key={`beam-particle-${i}`}
+          key={i}
           ref={(el) => { sphereRefs.current[i] = el; }}
           geometry={sphereGeometry}
-          material={sphereMaterial}
-        />
+        >
+          <meshStandardMaterial
+            ref={i === 0 ? sphereMaterialRef : undefined}
+            color={emissiveColor}
+            emissive={emissiveColor}
+            emissiveIntensity={3}
+            transparent
+            opacity={1}
+          />
+        </mesh>
       ))}
     </group>
   );

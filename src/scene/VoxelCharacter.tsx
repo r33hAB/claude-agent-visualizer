@@ -161,9 +161,9 @@ export default function VoxelCharacter({ category, animationState, speedMultipli
   const handMat = useMemo(() => new THREE.MeshStandardMaterial({ color: aCol, emissive: aCol, emissiveIntensity: 0.3 }), [aCol]);
   const shoeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: dCol, emissive: dCol, emissiveIntensity: 0.15 }), [dCol]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime * speedMultiplier;
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const dt = Math.min(delta, 0.05);
     timeRef.current = clock.elapsedTime;
 
     // Gather all refs
