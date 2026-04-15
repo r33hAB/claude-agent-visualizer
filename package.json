@@ -14,18 +14,24 @@
     "lint": "eslint src/ server/ --ext .ts,.tsx"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.0",
+    "@react-three/postprocessing": "^3.0.4",
+    "concurrently": "^9.1.0",
+    "express": "^5.0.0",
+    "get-port": "^7.1.0",
+    "open": "^10.1.0",
+    "postprocessing": "^6.39.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "express": "^5.0.0",
-    "ws": "^8.18.0",
-    "open": "^10.1.0",
-    "get-port": "^7.1.0",
-    "concurrently": "^9.1.0"
+    "three": "^0.183.2",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@types/express": "^5.0.0",
+    "@types/three": "^0.183.1",
     "@types/ws": "^8.5.0",
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.0",

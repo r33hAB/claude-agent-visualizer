@@ -13,16 +13,33 @@ import DetailPanel from './components/DetailPanel';
 import SwarmOverview from './components/SwarmOverview';
 import Controls from './components/Controls';
 
+// Predefined positions for up to 15 agents, spread out in a nice layout
+const GRID_POSITIONS: IsoPosition[] = [
+  { gridX: 0, gridY: 0 },    // 0: center (coordinator)
+  { gridX: -3, gridY: -2 },  // 1: top-left
+  { gridX: 3, gridY: -2 },   // 2: top-right
+  { gridX: -4, gridY: 2 },   // 3: left
+  { gridX: 4, gridY: 2 },    // 4: right
+  { gridX: 0, gridY: 4 },    // 5: bottom center
+  { gridX: -2, gridY: -5 },  // 6: far top-left
+  { gridX: 2, gridY: -5 },   // 7: far top-right
+  { gridX: -6, gridY: 0 },   // 8: far left
+  { gridX: 6, gridY: 0 },    // 9: far right
+  { gridX: -3, gridY: 5 },   // 10: bottom-left
+  { gridX: 3, gridY: 5 },    // 11: bottom-right
+  { gridX: 0, gridY: -4 },   // 12: top center
+  { gridX: -5, gridY: -3 },  // 13
+  { gridX: 5, gridY: -3 },   // 14
+];
+
 function assignGridPosition(index: number): IsoPosition {
-  if (index === 0) return { gridX: 0, gridY: 0 };
-
-  // Expand in rings using angle-based placement
+  if (index < GRID_POSITIONS.length) {
+    return GRID_POSITIONS[index];
+  }
+  // Fallback for more than 15 agents
   const ring = Math.ceil(Math.sqrt(index));
-  const spotsInRing = ring * 6;
-  const posInRing = (index - 1) % spotsInRing;
-  const angle = (posInRing / spotsInRing) * Math.PI * 2;
-  const radius = ring * 2;
-
+  const angle = ((index - GRID_POSITIONS.length) / 6) * Math.PI * 2;
+  const radius = ring * 3;
   return {
     gridX: Math.round(Math.cos(angle) * radius),
     gridY: Math.round(Math.sin(angle) * radius),
@@ -108,8 +125,8 @@ export function App() {
         const state = entity.getState();
         const screenPos = entity.getScreenPosition(w, h);
 
-        // Draw station tile behind each agent
-        drawStation(ctx, screenPos.x, screenPos.y + 20, state.category, state.progress / 100, time);
+        // Draw station tile behind each agent (offset down to sit under character)
+        drawStation(ctx, screenPos.x, screenPos.y + 35, state.category, state.progress / 100, time);
 
         // Draw agent sprite
         entity.draw(ctx, w, h, time);

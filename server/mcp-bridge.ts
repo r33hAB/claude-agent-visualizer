@@ -91,8 +91,8 @@ export class McpBridge {
   private pollMock(): VisualizerState {
     this.mockTick++;
 
-    // Gradually introduce agents: start with 3, add one every 3 ticks up to 8
-    const agentCount = Math.min(3 + Math.floor(this.mockTick / 3), MOCK_AGENT_DEFS.length);
+    // Start with 6 agents, add one every 5 ticks up to 8
+    const agentCount = Math.min(6 + Math.floor(this.mockTick / 5), MOCK_AGENT_DEFS.length);
     const agents = new Map<string, AgentState>();
 
     for (let i = 0; i < agentCount; i++) {
