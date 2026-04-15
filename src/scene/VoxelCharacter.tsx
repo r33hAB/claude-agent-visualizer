@@ -110,7 +110,8 @@ function Prop({ category, color, time }: { category: AgentCategory; color: strin
   const bob = Math.sin(time * 2) * 0.1;
   switch (category) {
     case AgentCategory.Coder:
-      return <group position={[1.2, 1.5, 0.5]}><mesh position={[0, bob, 0]}><planeGeometry args={[0.8, 0.5]} /><meshStandardMaterial color={color} emissive={c} emissiveIntensity={1} transparent opacity={0.7} side={THREE.DoubleSide} /></mesh></group>;
+      // Small holographic code panel (thin box, not plane)
+      return <group position={[0.8, 1.8, 0.3]}><mesh position={[0, bob, 0]}><boxGeometry args={[0.5, 0.35, 0.02]} /><meshStandardMaterial color={color} emissive={c} emissiveIntensity={0.8} transparent opacity={0.6} /></mesh></group>;
     case AgentCategory.Security:
       return <group position={[-1, 0.6, 0.3]}><mesh><boxGeometry args={[0.6, 0.7, 0.08]} /><meshStandardMaterial color={color} emissive={c} emissiveIntensity={0.4} metalness={0.8} /></mesh></group>;
     case AgentCategory.Coordinator:

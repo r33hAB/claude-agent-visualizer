@@ -97,14 +97,13 @@ export function HoloDisplay({
 
   return (
     <mesh ref={meshRef} position={position} rotation={rotation}>
-      <planeGeometry args={[width, height]} />
+      <boxGeometry args={[width, height, 0.02]} />
       <meshStandardMaterial
         map={texture}
         emissive={color}
         emissiveIntensity={0.2}
         transparent
         opacity={0.85}
-        side={THREE.DoubleSide}
       />
     </mesh>
   );

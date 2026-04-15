@@ -365,8 +365,8 @@ function PlannerStation({ accent, time }: { accent: THREE.Color; time: number })
           { pos: [0.55, -0.2, 0.01] as [number, number, number], col: '#4ade80' },
         ].map((note, i) => (
           <mesh key={`note-${i}`} position={note.pos} rotation={[0, 0, (i - 1.5) * 0.08]}>
-            <planeGeometry args={[0.2, 0.2]} />
-            <meshStandardMaterial color={note.col} emissive={new THREE.Color(note.col)} emissiveIntensity={0.2} side={THREE.DoubleSide} />
+            <boxGeometry args={[0.2, 0.2, 0.02]} />
+            <meshStandardMaterial color={note.col} emissive={new THREE.Color(note.col)} emissiveIntensity={0.2} />
           </mesh>
         ))}
         {/* Timeline bar below whiteboard */}
@@ -389,7 +389,7 @@ function PlannerStation({ accent, time }: { accent: THREE.Color; time: number })
           emissiveIntensity={0.3}
           transparent
           opacity={0.15}
-          side={THREE.DoubleSide}
+         
         />
       </mesh>
       {/* Monitor on desk */}
@@ -626,7 +626,7 @@ function CoordinatorStation({ accent, time }: { accent: THREE.Color; time: numbe
       {/* Radar dish cone */}
       <mesh position={[0.7, 0.7, -0.5]} rotation={[0, 0, 0]}>
         <coneGeometry args={[0.15, 0.25, 12, 1, true]} />
-        <meshStandardMaterial color="#475569" roughness={0.3} metalness={0.7} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#475569" roughness={0.3} metalness={0.7} />
       </mesh>
       {/* Radar dish stick */}
       <mesh position={[0.7, 0.5, -0.5]}>
@@ -662,8 +662,8 @@ function CoordinatorStation({ accent, time }: { accent: THREE.Color; time: numbe
       </mesh>
       {/* Status display */}
       <mesh position={[-0.5, 0.85, 0.6]} rotation={[-0.2, 0.3, 0]}>
-        <planeGeometry args={[0.5, 0.35]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.4} side={THREE.DoubleSide} />
+        <boxGeometry args={[0.5, 0.35, 0.02]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.4} />
       </mesh>
       {/* Display bezel */}
       <mesh position={[-0.5, 0.85, 0.59]} rotation={[-0.2, 0.3, 0]}>
@@ -857,8 +857,8 @@ function DevOpsStation({ accent, progress, time }: { accent: THREE.Color; progre
       </mesh>
       {/* Terminal screen */}
       <mesh position={[-0.7, 0.55, -0.3]} rotation={[0, 0.3, 0]}>
-        <planeGeometry args={[0.5, 0.35]} />
-        <meshStandardMaterial color="#022c22" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.15} side={THREE.DoubleSide} />
+        <boxGeometry args={[0.5, 0.35, 0.02]} />
+        <meshStandardMaterial color="#022c22" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.15} />
       </mesh>
       {/* Terminal bezel */}
       <mesh position={[-0.7, 0.55, -0.31]} rotation={[0, 0.3, 0]}>
@@ -868,8 +868,8 @@ function DevOpsStation({ accent, progress, time }: { accent: THREE.Color; progre
       {/* Terminal text lines */}
       {[0.08, 0.02, -0.04].map((yOff, i) => (
         <mesh key={`tline-${i}`} position={[-0.7, 0.55 + yOff, -0.295]} rotation={[0, 0.3, 0]}>
-          <planeGeometry args={[0.35 - i * 0.05, 0.015]} />
-          <meshStandardMaterial color="#22c55e" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.5} side={THREE.DoubleSide} />
+          <boxGeometry args={[0.35 - i * 0.05, 0.015, 0.02]} />
+          <meshStandardMaterial color="#22c55e" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.5} />
         </mesh>
       ))}
       {/* Cooling fan */}
@@ -1017,8 +1017,8 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
         </mesh>
         {/* Canvas */}
         <mesh position={[0, 0.15, 0]}>
-          <planeGeometry args={[0.6, 0.5]} />
-          <meshStandardMaterial color="#fafafa" emissive={accent} emissiveIntensity={0.05} side={THREE.DoubleSide} />
+          <boxGeometry args={[0.6, 0.5, 0.02]} />
+          <meshStandardMaterial color="#fafafa" emissive={accent} emissiveIntensity={0.05} />
         </mesh>
         {/* Colorful splashes on canvas */}
         {[
@@ -1028,8 +1028,8 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
           { pos: [0.1, 0.25, 0.01] as [number, number, number], col: '#22c55e', s: 0.07 },
         ].map((splash, i) => (
           <mesh key={`splash-${i}`} position={splash.pos}>
-            <planeGeometry args={[splash.s, splash.s]} />
-            <meshStandardMaterial color={splash.col} emissive={new THREE.Color(splash.col)} emissiveIntensity={0.3} side={THREE.DoubleSide} />
+            <boxGeometry args={[splash.s, splash.s, 0.02]} />
+            <meshStandardMaterial color={splash.col} emissive={new THREE.Color(splash.col)} emissiveIntensity={0.3} />
           </mesh>
         ))}
       </group>
@@ -1061,8 +1061,8 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
       ))}
       {/* Tablet/pen display */}
       <mesh position={[0.55, 0.48, 0.15]} rotation={[0.15, -0.2, 0]}>
-        <planeGeometry args={[0.4, 0.28]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} side={THREE.DoubleSide} />
+        <boxGeometry args={[0.4, 0.28, 0.02]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} />
       </mesh>
       {/* Stylus */}
       <mesh position={[0.8, 0.47, 0.1]} rotation={[0, 0.3, Math.PI / 6]}>
@@ -1072,8 +1072,8 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
       {/* Inspiration board behind */}
       <group position={[0.6, 0.95, 0.75]}>
         <mesh>
-          <planeGeometry args={[0.6, 0.45]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.3} side={THREE.DoubleSide} />
+          <boxGeometry args={[0.6, 0.45, 0.02]} />
+          <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.3} />
         </mesh>
         {/* Tiny colored squares pinned to board */}
         {[
@@ -1084,8 +1084,8 @@ function DesignerStation({ accent, time }: { accent: THREE.Color; time: number }
           { pos: [0.0, 0.15, 0.01] as [number, number, number], col: '#c084fc' },
         ].map((pin, i) => (
           <mesh key={`pin-${i}`} position={pin.pos}>
-            <planeGeometry args={[0.08, 0.08]} />
-            <meshStandardMaterial color={pin.col} emissive={new THREE.Color(pin.col)} emissiveIntensity={0.2} side={THREE.DoubleSide} />
+            <boxGeometry args={[0.08, 0.08, 0.02]} />
+            <meshStandardMaterial color={pin.col} emissive={new THREE.Color(pin.col)} emissiveIntensity={0.2} />
           </mesh>
         ))}
       </group>

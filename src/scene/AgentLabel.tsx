@@ -30,7 +30,7 @@ export default function AgentLabel({ name, progress, status }: AgentLabelProps) 
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
         {/* Semi-transparent background */}
         <mesh position={[0, 0.1, -0.01]}>
-          <planeGeometry args={[bgWidth, 0.8]} />
+          <boxGeometry args={[bgWidth, 0.8, 0.01]} />
           <meshBasicMaterial color="#000000" transparent opacity={0.4} />
         </mesh>
 
