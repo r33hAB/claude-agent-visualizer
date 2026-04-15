@@ -154,6 +154,31 @@ async function main(): Promise<void> {
     console.log('[server] PUSH mode — agents via REST API only');
   }
 
+  // ─── Auto-seed demo agents if no bridge and no pushed agents ──────
+  if (!bridge && pushedAgents.size === 0) {
+    const seeds = [
+      { id: 'demo-coder', name: 'MainCoder', type: 'coder', task: 'Implementing feature module' },
+      { id: 'demo-reviewer', name: 'CodeReviewer', type: 'reviewer', task: 'Reviewing pull request' },
+      { id: 'demo-security', name: 'SecAuditor', type: 'security-auditor', task: 'Scanning for vulnerabilities' },
+      { id: 'demo-coordinator', name: 'SwarmCoord', type: 'coordinator', task: 'Orchestrating sprint tasks' },
+      { id: 'demo-tester', name: 'IntegTester', type: 'tester', task: 'Running integration tests' },
+      { id: 'demo-researcher', name: 'DocResearcher', type: 'researcher', task: 'Gathering API documentation' },
+    ];
+    const now = Date.now();
+    for (const s of seeds) {
+      pushedAgents.set(s.id, {
+        id: s.id, name: s.name, type: s.type,
+        category: categorizeAgent(s.type),
+        status: 'active', progress: Math.floor(Math.random() * 80) + 10,
+        taskDescription: s.task, elapsedMs: 0,
+        logs: [`[${new Date().toLocaleTimeString()}] Agent started`],
+        dependencies: [], dependents: [],
+      });
+      agentStartTimes.set(s.id, now - Math.floor(Math.random() * 60000));
+    }
+    console.log(`[server] Seeded ${seeds.length} demo agents.`);
+  }
+
   // ─── REST API ─────────────────────────────────────────────────────
 
   app.post('/api/agent', (req, res) => {
