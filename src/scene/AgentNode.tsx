@@ -61,8 +61,8 @@ export default function AgentNode({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
-      {/* Station BESIDE the character (offset X+4), scaled 2x, no rotation tricks */}
-      <group position={[position[0] + 4, position[1], position[2]]} scale={2}>
+      {/* Station in front of character */}
+      <group position={[position[0], position[1], position[2] + 5]} scale={2}>
         <Station3D
           category={agentState.category}
           progress={agentState.progress}

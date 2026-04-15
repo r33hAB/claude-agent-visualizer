@@ -223,79 +223,45 @@ function CoderStation({ accent, time }: { accent: THREE.Color; time: number }) {
 // ========== REVIEWER STATION ==========
 
 function ReviewerStation({ accent, progress, time }: { accent: THREE.Color; progress: number; time: number }) {
-  const stackCount = 1 + Math.floor(progress * 4);
+  // Simple desk with monitor and FLAT document stack (no fancy organizers that break)
+  const docCount = 1 + Math.floor(progress * 4);
   return (
     <group position={[0, 0.15, 0]}>
-      {/* Desk */}
+      {/* Desk surface */}
       <mesh position={[0, 0.45, 0.3]}>
         <boxGeometry args={[1.4, 0.06, 0.8]} />
         <DeskMat />
       </mesh>
-      {/* Desk legs */}
+      {/* 4 desk legs */}
       {[[-0.6, 0.65], [0.6, 0.65], [-0.6, -0.05], [0.6, -0.05]].map(([x, z], i) => (
         <mesh key={`leg-${i}`} position={[x, 0.22, z]}>
           <boxGeometry args={[0.06, 0.44, 0.06]} />
-          <meshStandardMaterial color="#111827" roughness={0.4} metalness={0.5} />
+          <meshStandardMaterial color="#111827" />
         </mesh>
       ))}
-      {/* Document organizer: 3 vertical dividers */}
-      {[-0.12, 0, 0.12].map((xOff, i) => (
-        <mesh key={`div-${i}`} position={[0.5 + xOff, 0.56, 0.15]}>
-          <boxGeometry args={[0.01, 0.18, 0.2]} />
-          <meshStandardMaterial color="#64748b" roughness={0.4} metalness={0.5} />
-        </mesh>
-      ))}
-      {/* Documents in slots */}
-      {Array.from({ length: stackCount }).map((_, i) => (
-        <mesh key={`doc-${i}`} position={[0.44 + i * 0.1, 0.52, 0.15]}>
-          <boxGeometry args={[0.08, 0.14, 0.18]} />
+      {/* Monitor */}
+      <Monitor position={[0, 0.88, 0.55]} rotation={[-0.1, 0, 0]} size={[0.8, 0.5]} color={accent} time={time} />
+      {/* FLAT document stack on desk — just boxes lying flat, stacked vertically */}
+      {Array.from({ length: docCount }).map((_, i) => (
+        <mesh key={`doc-${i}`} position={[-0.45, 0.50 + i * 0.015, 0.2]}>
+          <boxGeometry args={[0.3, 0.01, 0.4]} />
           <meshStandardMaterial
-            color={['#e2e8f0', '#cbd5e1', '#fef3c7', '#dbeafe'][i % 4]}
-            roughness={0.8}
-            metalness={0.1}
+            color={['#f5f5dc', '#e2e8f0', '#fef3c7', '#dbeafe', '#fce7f3'][i % 5]}
           />
         </mesh>
       ))}
-      {/* Main monitor */}
-      <Monitor position={[0, 0.88, 0.65]} rotation={[-0.15, 0, 0]} size={[0.8, 0.5]} color={accent} time={time} />
-      {/* Green diff stripe on monitor (thin box, not plane) */}
-      <mesh position={[0.15, 0.88, 0.66]} rotation={[-0.15, 0, 0]}>
-        <boxGeometry args={[0.06, 0.3, 0.01]} />
-        <meshStandardMaterial color="#22c55e" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.4} />
+      {/* Red stamp on desk */}
+      <mesh position={[0.45, 0.49, 0.2]}>
+        <boxGeometry args={[0.12, 0.04, 0.08]} />
+        <meshStandardMaterial color="#dc2626" />
       </mesh>
-      {/* Red diff stripe on monitor (thin box, not plane) */}
-      <mesh position={[0.23, 0.88, 0.66]} rotation={[-0.15, 0, 0]}>
-        <boxGeometry args={[0.06, 0.3, 0.01]} />
-        <meshStandardMaterial color="#ef4444" emissive={new THREE.Color('#ef4444')} emissiveIntensity={0.4} />
-      </mesh>
-      {/* Red stamp pad */}
-      <mesh position={[-0.5, 0.49, 0.15]}>
-        <boxGeometry args={[0.15, 0.03, 0.1]} />
-        <meshStandardMaterial color="#dc2626" roughness={0.7} metalness={0.1} />
-      </mesh>
-      {/* Desk lamp stem */}
-      <mesh position={[-0.55, 0.62, 0.5]}>
-        <cylinderGeometry args={[0.015, 0.02, 0.3, 6]} />
-        <meshStandardMaterial color="#64748b" roughness={0.4} metalness={0.6} />
-      </mesh>
-      {/* Desk lamp head */}
-      <mesh position={[-0.55, 0.8, 0.5]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.08, 0.1, 8]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} />
-      </mesh>
-      <pointLight position={[-0.55, 0.75, 0.5]} color={accent.getStyle()} intensity={0.3} distance={1.5} />
-      {/* Pencil holder */}
-      <mesh position={[-0.3, 0.52, 0.0]}>
-        <cylinderGeometry args={[0.035, 0.03, 0.08, 8]} />
-        <meshStandardMaterial color="#374151" roughness={0.5} metalness={0.4} />
-      </mesh>
-      {/* Pencils */}
-      {[[-0.005, 0.04], [0.005, -0.03], [0.01, 0.01]].map(([xOff, zOff], i) => (
-        <mesh key={`pencil-${i}`} position={[-0.3 + xOff, 0.6 + i * 0.01, 0.0 + zOff]} rotation={[0.05 * (i - 1), 0, 0.03 * (i - 1)]}>
-          <cylinderGeometry args={[0.005, 0.005, 0.12, 4]} />
-          <meshStandardMaterial color={['#eab308', '#ef4444', '#3b82f6'][i]} roughness={0.6} metalness={0.1} />
+      {/* Green "approved" stamp mark on top doc */}
+      {progress > 0.7 && (
+        <mesh position={[-0.45, 0.50 + docCount * 0.015, 0.2]}>
+          <boxGeometry args={[0.15, 0.005, 0.08]} />
+          <meshStandardMaterial color="#22c55e" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.3} />
         </mesh>
-      ))}
+      )}
     </group>
   );
 }
