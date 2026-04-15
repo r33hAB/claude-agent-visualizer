@@ -1,0 +1,7 @@
+{
+  "name": "claude-agent-visualizer",
+  "version": "0.1.0",
+  "description": "Isometric visualization of running claude-flow agents with animated characters, progress tracking, and interaction animations",
+  "author": "r33hab",
+  "skills": ["visualizer"]
+}
