@@ -61,7 +61,7 @@ export default function AgentNode({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
-      {/* Station at home — scaled 3x to match character, placed IN FRONT (Z+5) */}
+      {/* Station in front of character */}
       <group position={[position[0], position[1], position[2] + 5]} scale={3}>
         <Station3D
           category={agentState.category}

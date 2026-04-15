@@ -35,16 +35,15 @@ function HeadMod({ category, accent }: { category: AgentCategory; accent: string
     case AgentCategory.Coder:
       return <mesh position={[0, 0.05, 0.45]}><boxGeometry args={[0.8, 0.2, 0.15]} />{mat}</mesh>;
     case AgentCategory.Reviewer:
-      // Paper/document held up near face for reading
+      // Paper/document held up — text faces back toward character (-Z)
       return (
         <group position={[0, -0.1, 0.5]}>
-          {/* Main document */}
           <mesh rotation={[0.15, 0, 0]}><boxGeometry args={[0.5, 0.6, 0.03]} /><meshStandardMaterial color="#f5f5dc" /></mesh>
-          {/* Text lines on document */}
-          <mesh position={[0, 0.15, 0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.35, 0.03, 0.01]} />{mat}</mesh>
-          <mesh position={[0, 0.06, 0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.3, 0.03, 0.01]} /><meshStandardMaterial color="#22c55e" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.4} /></mesh>
-          <mesh position={[0, -0.03, 0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.32, 0.03, 0.01]} /><meshStandardMaterial color="#ef4444" emissive={new THREE.Color('#ef4444')} emissiveIntensity={0.4} /></mesh>
-          <mesh position={[0, -0.12, 0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.28, 0.03, 0.01]} />{mat}</mesh>
+          {/* Text lines on back face (facing character) */}
+          <mesh position={[0, 0.15, -0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.35, 0.03, 0.01]} />{mat}</mesh>
+          <mesh position={[0, 0.06, -0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.3, 0.03, 0.01]} /><meshStandardMaterial color="#22c55e" emissive={new THREE.Color('#22c55e')} emissiveIntensity={0.4} /></mesh>
+          <mesh position={[0, -0.03, -0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.32, 0.03, 0.01]} /><meshStandardMaterial color="#ef4444" emissive={new THREE.Color('#ef4444')} emissiveIntensity={0.4} /></mesh>
+          <mesh position={[0, -0.12, -0.02]} rotation={[0.15, 0, 0]}><boxGeometry args={[0.28, 0.03, 0.01]} />{mat}</mesh>
         </group>
       );
     case AgentCategory.Planner:
