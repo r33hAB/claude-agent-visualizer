@@ -11,7 +11,7 @@ interface InteractionBeamProps {
 }
 
 const PARTICLE_COUNT = 5;
-const SPHERE_RADIUS = 0.06;
+const SPHERE_RADIUS = 0.2;
 
 export function InteractionBeam({ from, to, color, life, maxLife }: InteractionBeamProps) {
   const sphereRefs = useRef<(THREE.Mesh | null)[]>([]);
@@ -22,18 +22,21 @@ export function InteractionBeam({ from, to, color, life, maxLife }: InteractionB
   const emissiveColor = useMemo(() => new THREE.Color(color), [color]);
 
   const curve = useMemo(() => {
-    const start = new THREE.Vector3(...from);
-    const end = new THREE.Vector3(...to);
+    const start = new THREE.Vector3(from[0], from[1] + 3, from[2]);
+    const end = new THREE.Vector3(to[0], to[1] + 3, to[2]);
+    // Arc height proportional to distance between agents
+    const dist = start.distanceTo(end);
+    const arcHeight = Math.max(5, dist * 0.3);
     const mid = new THREE.Vector3(
       (from[0] + to[0]) / 2,
-      (from[1] + to[1]) / 2 + 3,
+      (from[1] + to[1]) / 2 + arcHeight,
       (from[2] + to[2]) / 2,
     );
     return new THREE.QuadraticBezierCurve3(start, mid, end);
   }, [from[0], from[1], from[2], to[0], to[1], to[2]]);
 
   const tubeGeometry = useMemo(() => {
-    return new THREE.TubeGeometry(curve, 32, 0.04, 6, false);
+    return new THREE.TubeGeometry(curve, 48, 0.12, 8, false);
   }, [curve]);
 
   // Dispose old geometry on cleanup

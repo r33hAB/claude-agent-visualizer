@@ -146,7 +146,7 @@ export function App() {
         targetAgentId: event.targetAgentId,
         color: BEAM_COLORS[event.type] ?? '#60a5fa',
         life: 0,
-        maxLife: 4, // longer beams so you can see them
+        maxLife: 2.5,
         startTime: Date.now(),
       });
 
