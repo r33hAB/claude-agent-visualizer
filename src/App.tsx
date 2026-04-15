@@ -1,181 +1,125 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
-import type { AgentState, AgentCategory, IsoPosition } from './types/agent';
-import type { SpriteSheet } from './canvas/SpriteAnimator';
-import { IsometricEngine } from './canvas/IsometricEngine';
-import { generateAllSpriteSheets } from './canvas/SpriteGenerator';
-import { AgentEntity } from './canvas/AgentEntity';
-import { drawStation } from './canvas/StationRenderer';
-import { EnvironmentRenderer } from './canvas/EnvironmentRenderer';
-import { InteractionManager } from './canvas/InteractionManager';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { AgentState, AgentCategory } from './types/agent';
 import { useAgentData } from './hooks/useAgentData';
-import { useCanvasResize } from './hooks/useCanvasResize';
+import { SceneRoot } from './scene/SceneRoot';
+import { Environment } from './scene/Environment';
+import { PerformanceProvider } from './scene/PerformanceMonitor';
+import AgentNode from './scene/AgentNode';
+import { InteractionBeam } from './scene/InteractionBeam';
+import { ParticleField } from './scene/effects/ParticleField';
+import { PostProcessing } from './scene/PostProcessing';
 import DetailPanel from './components/DetailPanel';
 import SwarmOverview from './components/SwarmOverview';
 import Controls from './components/Controls';
 
-// Predefined positions for up to 15 agents, spread out in a nice layout
-const GRID_POSITIONS: IsoPosition[] = [
-  { gridX: 0, gridY: 0 },    // 0: center (coordinator)
-  { gridX: -3, gridY: -2 },  // 1: top-left
-  { gridX: 3, gridY: -2 },   // 2: top-right
-  { gridX: -4, gridY: 2 },   // 3: left
-  { gridX: 4, gridY: 2 },    // 4: right
-  { gridX: 0, gridY: 4 },    // 5: bottom center
-  { gridX: -2, gridY: -5 },  // 6: far top-left
-  { gridX: 2, gridY: -5 },   // 7: far top-right
-  { gridX: -6, gridY: 0 },   // 8: far left
-  { gridX: 6, gridY: 0 },    // 9: far right
-  { gridX: -3, gridY: 5 },   // 10: bottom-left
-  { gridX: 3, gridY: 5 },    // 11: bottom-right
-  { gridX: 0, gridY: -4 },   // 12: top center
-  { gridX: -5, gridY: -3 },  // 13
-  { gridX: 5, gridY: -3 },   // 14
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const AGENT_POSITIONS: [number, number, number][] = [
+  [0, 0, 0],       // 0: center (coordinator)
+  [-8, 0, -6],     // 1
+  [8, 0, -6],      // 2
+  [-10, 0, 4],     // 3
+  [10, 0, 4],      // 4
+  [0, 0, 10],      // 5
+  [-6, 0, -12],    // 6
+  [6, 0, -12],     // 7
+  [-14, 0, 0],     // 8
+  [14, 0, 0],      // 9
+  [-8, 0, 12],     // 10
+  [8, 0, 12],      // 11
+  [0, 0, -10],     // 12
+  [-12, 0, -10],   // 13
+  [12, 0, -10],    // 14
 ];
 
-function assignGridPosition(index: number): IsoPosition {
-  if (index < GRID_POSITIONS.length) {
-    return GRID_POSITIONS[index];
-  }
-  // Fallback for more than 15 agents
-  const ring = Math.ceil(Math.sqrt(index));
-  const angle = ((index - GRID_POSITIONS.length) / 6) * Math.PI * 2;
-  const radius = ring * 3;
-  return {
-    gridX: Math.round(Math.cos(angle) * radius),
-    gridY: Math.round(Math.sin(angle) * radius),
-  };
+const BEAM_COLORS: Record<string, string> = {
+  task_handoff: '#3b82f6',
+  review_request: '#f59e0b',
+  review_complete: '#22c55e',
+  coordinator_delegation: '#ec4899',
+  error_escalation: '#ef4444',
+  status_update: '#60a5fa',
+  memory_sharing: '#22d3ee',
+  coordination_sync: '#ec4899',
+  heartbeat: '#334155',
+};
+
+const ENV_COLORS: Record<string, string> = {
+  idle: '#8899bb',
+  active: '#3b82f6',
+  heavy: '#8b5cf6',
+  error: '#ef4444',
+  complete: '#f59e0b',
+  shutdown: '#334155',
+};
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface ActiveBeam {
+  id: string;
+  sourceAgentId: string;
+  targetAgentId: string;
+  color: string;
+  life: number;
+  maxLife: number;
+  startTime: number;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function assignPosition(index: number): [number, number, number] {
+  if (index < AGENT_POSITIONS.length) {
+    return AGENT_POSITIONS[index];
+  }
+  // Fallback: place in a ring beyond the predefined positions
+  const ring = Math.ceil(Math.sqrt(index - AGENT_POSITIONS.length + 1));
+  const angle =
+    ((index - AGENT_POSITIONS.length) / 6) * Math.PI * 2;
+  const radius = ring * 6;
+  return [
+    Math.round(Math.cos(angle) * radius),
+    0,
+    Math.round(Math.sin(angle) * radius),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// App
+// ---------------------------------------------------------------------------
+
 export function App() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<IsometricEngine | null>(null);
-  const environmentRef = useRef<EnvironmentRenderer>(new EnvironmentRenderer());
-  const interactionMgrRef = useRef<InteractionManager>(new InteractionManager());
-  const entitiesRef = useRef<Map<string, AgentEntity>>(new Map());
-  const spriteSheetsRef = useRef<Map<AgentCategory, SpriteSheet>>(new Map());
-  const sizeRef = useRef({ width: 800, height: 600 });
-
-  const [selectedAgent, setSelectedAgent] = useState<AgentState | null>(null);
-  const [activeFilters, setActiveFilters] = useState<Set<AgentCategory>>(
-    () => new Set(),
-  );
-
   const { agents, interactions, swarm, connected } = useAgentData();
+  const [selectedAgent, setSelectedAgent] = useState<AgentState | null>(null);
+  const [activeBeams, setActiveBeams] = useState<ActiveBeam[]>([]);
 
-  // Track whether filters have been initialized by the Controls component
-  const filtersInitializedRef = useRef(false);
+  // Stable map from agent id -> world position
+  const agentPositions = useRef(new Map<string, [number, number, number]>());
 
-  // Load sprite sheets on mount
-  useEffect(() => {
-    generateAllSpriteSheets().then((sheets) => {
-      spriteSheetsRef.current = sheets;
-    });
-  }, []);
+  // Track which interaction event ids we have already converted to beams
+  const processedInteractionIds = useRef(new Set<string>());
 
-  // Engine setup with render loop
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const engine = new IsometricEngine(canvas);
-    engineRef.current = engine;
-
-    let lastTime = 0;
-
-    engine.setRenderCallback((ctx, _camera, dt) => {
-      const time = performance.now() / 1000;
-      if (lastTime === 0) lastTime = time;
-      lastTime = time;
-
-      const w = sizeRef.current.width;
-      const h = sizeRef.current.height;
-
-      // Update systems
-      environmentRef.current.update(dt);
-      interactionMgrRef.current.update(dt, entitiesRef.current);
-
-      // Draw environment as full-screen background
-      ctx.save();
-      ctx.resetTransform();
-      environmentRef.current.draw(ctx);
-      ctx.restore();
-
-      // Collect visible entities for depth-sorted rendering
-      const visibleEntities: Array<{ entity: AgentEntity; screenY: number }> = [];
-
-      for (const [, entity] of entitiesRef.current) {
-        const state = entity.getState();
-
-        // Apply category filters (if filters set is non-empty, only show matching)
-        if (filtersInitializedRef.current && activeFilters.size > 0 && !activeFilters.has(state.category)) {
-          continue;
-        }
-
-        entity.update(dt);
-        const screenPos = entity.getScreenPosition(w, h);
-        visibleEntities.push({ entity, screenY: screenPos.y });
-      }
-
-      // Sort by screen Y for depth ordering (further = drawn first)
-      visibleEntities.sort((a, b) => a.screenY - b.screenY);
-
-      // Draw stations then agents, sorted by depth
-      for (const { entity } of visibleEntities) {
-        const state = entity.getState();
-        const screenPos = entity.getScreenPosition(w, h);
-
-        // Draw station tile behind each agent (offset down to sit under character)
-        drawStation(ctx, screenPos.x, screenPos.y + 35, state.category, state.progress / 100, time);
-
-        // Draw agent sprite
-        entity.draw(ctx, w, h, time);
-      }
-
-      // Draw interaction beams/particles on top
-      interactionMgrRef.current.draw(ctx, entitiesRef.current, w, h);
-    });
-
-    engine.start();
-
-    return () => {
-      engine.stop();
-      engineRef.current = null;
-    };
-  }, [activeFilters]);
-
-  // Sync agents from data hook into AgentEntity map
-  useEffect(() => {
-    const entities = entitiesRef.current;
-    const sheets = spriteSheetsRef.current;
-
-    // Track which IDs are in the new data
-    const incomingIds = new Set(agents.keys());
-    let index = 0;
-
-    for (const [id, agentState] of agents) {
-      if (entities.has(id)) {
-        // Update existing entity
-        entities.get(id)!.updateState(agentState);
-      } else {
-        // Create new entity
-        const sheet = sheets.get(agentState.category);
-        if (sheet) {
-          const position = assignGridPosition(index);
-          entities.set(id, new AgentEntity(agentState, position, sheet));
-        }
-      }
-      index++;
+  // --------------------------------------------------
+  // Assign positions to agents (stable across renders)
+  // --------------------------------------------------
+  const agentArray = Array.from(agents.values());
+  let nextIndex = agentPositions.current.size;
+  for (const agent of agentArray) {
+    if (!agentPositions.current.has(agent.id)) {
+      agentPositions.current.set(agent.id, assignPosition(nextIndex));
+      nextIndex++;
     }
+  }
 
-    // Remove agents that no longer exist
-    for (const existingId of entities.keys()) {
-      if (!incomingIds.has(existingId)) {
-        entities.delete(existingId);
-      }
-    }
-
-    // Update selected agent if it still exists
+  // --------------------------------------------------
+  // Keep selectedAgent in sync with latest data
+  // --------------------------------------------------
+  useEffect(() => {
     if (selectedAgent) {
       const updated = agents.get(selectedAgent.id);
       if (updated) {
@@ -186,111 +130,124 @@ export function App() {
     }
   }, [agents]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Process interaction events
+  // --------------------------------------------------
+  // Convert interaction events into timed beams
+  // --------------------------------------------------
   useEffect(() => {
-    if (interactions.length > 0) {
-      interactionMgrRef.current.processEvents(interactions, entitiesRef.current);
+    if (interactions.length === 0) return;
+
+    const newBeams: ActiveBeam[] = [];
+    for (const event of interactions) {
+      if (processedInteractionIds.current.has(event.id)) continue;
+      processedInteractionIds.current.add(event.id);
+
+      newBeams.push({
+        id: event.id,
+        sourceAgentId: event.sourceAgentId,
+        targetAgentId: event.targetAgentId,
+        color: BEAM_COLORS[event.type] ?? '#60a5fa',
+        life: 0,
+        maxLife: 1.5,
+        startTime: Date.now(),
+      });
+    }
+
+    if (newBeams.length > 0) {
+      setActiveBeams((prev) => [...prev, ...newBeams]);
     }
   }, [interactions]);
 
-  // Sync environment state from swarm
+  // --------------------------------------------------
+  // Beam lifecycle: age beams and remove expired ones
+  // --------------------------------------------------
   useEffect(() => {
-    environmentRef.current.setState(swarm.environment);
-  }, [swarm.environment]);
+    const interval = setInterval(() => {
+      setActiveBeams((prev) => {
+        const now = Date.now();
+        const next: ActiveBeam[] = [];
+        for (const beam of prev) {
+          const elapsed = (now - beam.startTime) / 1000;
+          if (elapsed < beam.maxLife) {
+            next.push({ ...beam, life: elapsed });
+          }
+        }
+        return next.length === prev.length ? prev : next;
+      });
+    }, 50);
 
-  // Canvas resize handler
-  const handleResize = useCallback((width: number, height: number) => {
-    sizeRef.current = { width, height };
-    environmentRef.current.resize(width, height);
-    engineRef.current?.resize(width, height);
+    return () => clearInterval(interval);
   }, []);
 
-  useCanvasResize(containerRef, canvasRef, handleResize);
+  // --------------------------------------------------
+  // Derived values
+  // --------------------------------------------------
+  const envColor = ENV_COLORS[swarm.environment] ?? ENV_COLORS.active;
 
-  // Click handler: select/deselect agents
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // --------------------------------------------------
+  // Filter change handler
+  // --------------------------------------------------
+  const handleFilterChange = useCallback(
+    // Filtering is a future enhancement; orbit controls handle zoom natively.
+    (_categories: Set<AgentCategory>) => {},
+    [],
+  );
 
-    const rect = canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const w = sizeRef.current.width;
-    const h = sizeRef.current.height;
-
-    for (const [, entity] of entitiesRef.current) {
-      if (entity.containsPoint(sx, sy, w, h)) {
-        setSelectedAgent(entity.getState());
-        return;
-      }
-    }
-
-    setSelectedAgent(null);
-  }, []);
-
-  // Pan handlers
-  const isDraggingRef = useRef(false);
-  const lastMouseRef = useRef({ x: 0, y: 0 });
-
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    isDraggingRef.current = true;
-    lastMouseRef.current = { x: e.clientX, y: e.clientY };
-  }, []);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDraggingRef.current) return;
-
-    const dx = e.clientX - lastMouseRef.current.x;
-    const dy = e.clientY - lastMouseRef.current.y;
-    lastMouseRef.current = { x: e.clientX, y: e.clientY };
-
-    engineRef.current?.pan(dx, dy);
-  }, []);
-
-  const handleMouseUp = useCallback(() => {
-    isDraggingRef.current = false;
-  }, []);
-
-  // Zoom handler
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    engineRef.current?.zoomBy(-e.deltaY * 0.001);
-  }, []);
-
-  // Filter change handler from Controls
-  const handleFilterChange = useCallback((categories: Set<AgentCategory>) => {
-    filtersInitializedRef.current = true;
-    setActiveFilters(categories);
-  }, []);
-
+  // --------------------------------------------------
+  // Render
+  // --------------------------------------------------
   return (
     <div className="w-screen h-screen relative">
-      <div ref={containerRef} className="w-full h-full">
-        <canvas
-          ref={canvasRef}
-          onClick={handleCanvasClick}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-          className="cursor-grab active:cursor-grabbing"
-        />
-      </div>
+      <SceneRoot swarmEnvironment={swarm.environment}>
+        <PerformanceProvider>
+          <Environment swarmEnvironment={swarm.environment} />
+          <ParticleField color={envColor} count={200} />
+
+          {/* Agent nodes */}
+          {agentArray.map((agent) => {
+            const pos = agentPositions.current.get(agent.id)!;
+            return (
+              <AgentNode
+                key={agent.id}
+                agentState={agent}
+                position={pos}
+                onSelect={setSelectedAgent}
+              />
+            );
+          })}
+
+          {/* Interaction beams */}
+          {activeBeams.map((beam) => {
+            const fromPos = agentPositions.current.get(beam.sourceAgentId);
+            const toPos = agentPositions.current.get(beam.targetAgentId);
+            if (!fromPos || !toPos) return null;
+            return (
+              <InteractionBeam
+                key={beam.id}
+                from={fromPos}
+                to={toPos}
+                color={beam.color}
+                life={beam.life}
+                maxLife={beam.maxLife}
+              />
+            );
+          })}
+
+          <PostProcessing focusAgent={selectedAgent !== null} />
+        </PerformanceProvider>
+      </SceneRoot>
+
+      {/* HTML overlays */}
       <SwarmOverview swarm={swarm} connected={connected} />
       <Controls
-        onZoomIn={() => engineRef.current?.zoomBy(0.2)}
-        onZoomOut={() => engineRef.current?.zoomBy(-0.2)}
-        onResetView={() => {
-          engineRef.current?.zoomTo(1);
-          engineRef.current?.pan(
-            -(engineRef.current?.getCamera().offsetX ?? 0),
-            -(engineRef.current?.getCamera().offsetY ?? 0),
-          );
-        }}
+        onZoomIn={() => {}}
+        onZoomOut={() => {}}
+        onResetView={() => {}}
         onFilterChange={handleFilterChange}
       />
-      <DetailPanel agent={selectedAgent} onClose={() => setSelectedAgent(null)} />
+      <DetailPanel
+        agent={selectedAgent}
+        onClose={() => setSelectedAgent(null)}
+      />
     </div>
   );
 }
