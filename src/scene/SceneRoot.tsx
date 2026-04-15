@@ -119,7 +119,7 @@ interface SceneRootProps {
 export function SceneRoot({ swarmEnvironment, children }: SceneRootProps) {
   return (
     <Canvas
-      camera={{ position: [18, 12, 18], fov: 65, near: 0.1, far: 1000 }}
+      camera={{ position: [30, 25, 40], fov: 65, near: 0.1, far: 1000 }}
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,

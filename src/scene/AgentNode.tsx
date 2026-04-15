@@ -61,8 +61,8 @@ export default function AgentNode({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
-      {/* Station at home — offset down so equipment doesn't clip character */}
-      <group position={[position[0], position[1] - 0.1, position[2]]}>
+      {/* Station at home — scaled 3x to match character, placed IN FRONT (Z+5) */}
+      <group position={[position[0], position[1], position[2] + 5]} scale={3}>
         <Station3D
           category={agentState.category}
           progress={agentState.progress}
@@ -70,12 +70,12 @@ export default function AgentNode({
         />
       </group>
 
-      {/* Progress ring at ground level */}
-      <group position={[position[0], position[1] + 0.05, position[2]]}>
+      {/* Progress ring at ground, scaled to wrap the whole area */}
+      <group position={[position[0], position[1] + 0.05, position[2] + 2]}>
         <ProgressRing3D progress={agentState.progress} />
       </group>
 
-      {/* Character walks via WalkingAgent — raised well above station */}
+      {/* Character walks via WalkingAgent */}
       <WalkingAgent
         homePosition={position}
         targetPosition={walkTarget}
@@ -86,15 +86,15 @@ export default function AgentNode({
 
           return (
             <>
-              {/* Character stands on top of the station platform */}
-              <group position={[0, 1.8, 0]}>
+              {/* Character stands BEHIND the desk, facing it */}
+              <group position={[0, 0.5, 0]}>
                 <VoxelCharacter
                   category={agentState.category}
                   animationState={finalAnim}
                   speedMultiplier={speedMultiplier}
                 />
-                {/* Label above character head */}
-                <group position={[0, 4.5, 0]}>
+                {/* Label well above head */}
+                <group position={[0, 7, 0]}>
                   <AgentLabel
                     name={agentState.name}
                     progress={agentState.progress}
