@@ -11,6 +11,7 @@ import { PostProcessing } from './scene/PostProcessing';
 import DetailPanel from './components/DetailPanel';
 import SwarmOverview from './components/SwarmOverview';
 import Controls from './components/Controls';
+import KeybindsOverlay from './components/KeybindsOverlay';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -248,6 +249,7 @@ export function App() {
         agent={selectedAgent}
         onClose={() => setSelectedAgent(null)}
       />
+      <KeybindsOverlay />
     </div>
   );
 }

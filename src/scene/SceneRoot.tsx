@@ -1,51 +1,46 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Lighting } from './Lighting';
 
-// True freecam: right-drag to look, WASD to move, scroll to change speed
 function FreeCam() {
   const { camera, gl } = useThree();
   const keys = useRef(new Set<string>());
-  const isPointerLocked = useRef(false);
   const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
-  const moveSpeed = useRef(15);
+  const isDragging = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    // Initialize euler from current camera rotation
     euler.current.setFromQuaternion(camera.quaternion, 'YXZ');
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       keys.current.add(e.code.toLowerCase());
     };
-    const onKeyUp = (e: KeyboardEvent) => {
-      keys.current.delete(e.code.toLowerCase());
-    };
+    const onKeyUp = (e: KeyboardEvent) => keys.current.delete(e.code.toLowerCase());
 
+    // Left-click drag to rotate camera
     const onMouseDown = (e: MouseEvent) => {
-      // Right-click to start looking
-      if (e.button === 2) {
-        gl.domElement.requestPointerLock();
+      if (e.button === 0 || e.button === 2) {
+        isDragging.current = true;
+        lastMouse.current = { x: e.clientX, y: e.clientY };
       }
     };
-
-    const onPointerLockChange = () => {
-      isPointerLocked.current = document.pointerLockElement === gl.domElement;
-    };
-
+    const onMouseUp = () => { isDragging.current = false; };
     const onMouseMove = (e: MouseEvent) => {
-      if (!isPointerLocked.current) return;
-      const sensitivity = 0.002;
-      euler.current.y -= e.movementX * sensitivity;
-      euler.current.x -= e.movementY * sensitivity;
-      // Clamp vertical look
+      if (!isDragging.current) return;
+      const dx = e.clientX - lastMouse.current.x;
+      const dy = e.clientY - lastMouse.current.y;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+
+      const sensitivity = 0.003;
+      euler.current.y -= dx * sensitivity;
+      euler.current.x -= dy * sensitivity;
       euler.current.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, euler.current.x));
       camera.quaternion.setFromEuler(euler.current);
     };
 
     const onWheel = (e: WheelEvent) => {
-      // Scroll to zoom/move forward-back
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
       camera.position.addScaledVector(forward, -e.deltaY * 0.05);
@@ -53,23 +48,23 @@ function FreeCam() {
 
     const onContextMenu = (e: Event) => e.preventDefault();
 
-    const domElement = gl.domElement;
+    const dom = gl.domElement;
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
-    domElement.addEventListener('mousedown', onMouseDown);
-    domElement.addEventListener('mousemove', onMouseMove);
-    domElement.addEventListener('wheel', onWheel, { passive: false });
-    domElement.addEventListener('contextmenu', onContextMenu);
-    document.addEventListener('pointerlockchange', onPointerLockChange);
+    dom.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('mousemove', onMouseMove);
+    dom.addEventListener('wheel', onWheel, { passive: false });
+    dom.addEventListener('contextmenu', onContextMenu);
 
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
-      domElement.removeEventListener('mousedown', onMouseDown);
-      domElement.removeEventListener('mousemove', onMouseMove);
-      domElement.removeEventListener('wheel', onWheel);
-      domElement.removeEventListener('contextmenu', onContextMenu);
-      document.removeEventListener('pointerlockchange', onPointerLockChange);
+      dom.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      dom.removeEventListener('wheel', onWheel);
+      dom.removeEventListener('contextmenu', onContextMenu);
     };
   }, [camera, gl]);
 
@@ -78,7 +73,7 @@ function FreeCam() {
     const pressed = keys.current;
     if (pressed.size === 0) return;
 
-    let speed = moveSpeed.current * dt;
+    let speed = 15 * dt;
     if (pressed.has('shiftleft') || pressed.has('shiftright')) speed *= 3;
 
     const forward = new THREE.Vector3();
@@ -90,18 +85,14 @@ function FreeCam() {
     right.crossVectors(forward, camera.up).normalize();
 
     const move = new THREE.Vector3();
-
     if (pressed.has('keyw') || pressed.has('arrowup')) move.add(forward.clone().multiplyScalar(speed));
     if (pressed.has('keys') || pressed.has('arrowdown')) move.add(forward.clone().multiplyScalar(-speed));
     if (pressed.has('keya') || pressed.has('arrowleft')) move.add(right.clone().multiplyScalar(-speed));
     if (pressed.has('keyd') || pressed.has('arrowright')) move.add(right.clone().multiplyScalar(speed));
-    if (pressed.has('space')) move.y += speed;
-    if (pressed.has('keyq') || pressed.has('controlright') || pressed.has('controlleft')) move.y -= speed;
-    if (pressed.has('keye')) move.y += speed;
+    if (pressed.has('space') || pressed.has('keye')) move.y += speed;
+    if (pressed.has('keyq')) move.y -= speed;
 
-    if (move.lengthSq() > 0) {
-      camera.position.add(move);
-    }
+    if (move.lengthSq() > 0) camera.position.add(move);
   });
 
   return null;
