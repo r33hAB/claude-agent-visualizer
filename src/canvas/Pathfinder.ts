@@ -73,7 +73,7 @@ export function findPath(
       const path: IsoPosition[] = [];
       let traceKey: string | null = bestKey;
       while (traceKey !== null) {
-        const node = allNodes.get(traceKey)!;
+        const node: AStarNode = allNodes.get(traceKey)!;
         path.push({ gridX: node.pos.gridX, gridY: node.pos.gridY });
         traceKey = node.parent;
       }
