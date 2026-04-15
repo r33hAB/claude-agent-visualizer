@@ -12,14 +12,16 @@ interface WalkingAgentProps {
     currentPosition: [number, number, number];
     animationState: AnimationState;
     isWalking: boolean;
+    facingAngle: number;
+    interactPhase: number; // 0-1 during interaction, 0 otherwise
   }) => ReactNode;
 }
 
 type WalkPhase = 'home' | 'walking_to' | 'interacting' | 'walking_back';
 
-const WALK_SPEED = 3;
-const ARRIVAL_THRESHOLD = 0.3;
-const INTERACT_DURATION = 1.2;
+const WALK_SPEED = 4;
+const STOP_DISTANCE = 2.5; // stop this far from target — don't overlap
+const INTERACT_DURATION = 2.5; // longer interaction for visual payoff
 const MAX_DELTA = 0.05;
 
 export default function WalkingAgent({
@@ -33,46 +35,33 @@ export default function WalkingAgent({
   const phaseRef = useRef<WalkPhase>('home');
   const interactTimerRef = useRef(0);
   const posRef = useRef(new THREE.Vector3(...homePosition));
+  const facingAngleRef = useRef(0);
 
-  // State used to communicate animation info to render-prop children.
-  // Updated each frame only when the value actually changes, to avoid
-  // unnecessary re-renders while still keeping children in sync.
   const [animState, setAnimState] = useState<AnimationState>('idle');
   const [isWalking, setIsWalking] = useState(false);
+  const [interactPhase, setInteractPhase] = useState(0);
 
-  // Keep stable references for callbacks so we don't trigger extra effects.
   const onArrivedRef = useRef(onArrived);
   onArrivedRef.current = onArrived;
   const onReturnedRef = useRef(onReturned);
   onReturnedRef.current = onReturned;
-
-  // Keep homePosition ref up to date without re-running the effect.
   const homeRef = useRef(homePosition);
   homeRef.current = homePosition;
 
-  // When targetPosition goes from null to a value, begin the walk.
-  // When it goes back to null, we let the current phase finish naturally.
+  const prevAnimRef = useRef<AnimationState>('idle');
+  const prevWalkingRef = useRef(false);
+
+  const syncState = useCallback((anim: AnimationState, walking: boolean) => {
+    if (anim !== prevAnimRef.current) { prevAnimRef.current = anim; setAnimState(anim); }
+    if (walking !== prevWalkingRef.current) { prevWalkingRef.current = walking; setIsWalking(walking); }
+  }, []);
+
   useEffect(() => {
     if (targetPosition) {
       phaseRef.current = 'walking_to';
       interactTimerRef.current = 0;
     }
   }, [targetPosition]);
-
-  // Helper to batch state updates only when changed.
-  const prevAnimRef = useRef<AnimationState>('idle');
-  const prevWalkingRef = useRef(false);
-
-  const syncState = useCallback((anim: AnimationState, walking: boolean) => {
-    if (anim !== prevAnimRef.current) {
-      prevAnimRef.current = anim;
-      setAnimState(anim);
-    }
-    if (walking !== prevWalkingRef.current) {
-      prevWalkingRef.current = walking;
-      setIsWalking(walking);
-    }
-  }, []);
 
   useFrame((_, rawDelta) => {
     const delta = Math.min(rawDelta, MAX_DELTA);
@@ -81,20 +70,20 @@ export default function WalkingAgent({
 
     switch (phaseRef.current) {
       case 'walking_to': {
-        if (!targetPosition) {
-          // Target cleared while walking — go home immediately.
-          phaseRef.current = 'walking_back';
-          break;
-        }
+        if (!targetPosition) { phaseRef.current = 'walking_back'; break; }
         const target = new THREE.Vector3(...targetPosition);
         const dir = target.clone().sub(pos);
         const dist = dir.length();
 
-        if (dist < ARRIVAL_THRESHOLD) {
-          pos.copy(target);
+        // Calculate facing angle toward target
+        facingAngleRef.current = Math.atan2(dir.x, dir.z);
+
+        if (dist <= STOP_DISTANCE) {
+          // Stop near the target, don't walk ON TOP of them
           phaseRef.current = 'interacting';
           interactTimerRef.current = 0;
           syncState('interacting', true);
+          setInteractPhase(0);
           onArrivedRef.current?.();
         } else {
           dir.normalize().multiplyScalar(WALK_SPEED * delta);
@@ -106,9 +95,12 @@ export default function WalkingAgent({
 
       case 'interacting': {
         interactTimerRef.current += delta;
+        const phase = Math.min(interactTimerRef.current / INTERACT_DURATION, 1);
+        setInteractPhase(phase);
         syncState('interacting', true);
         if (interactTimerRef.current >= INTERACT_DURATION) {
           phaseRef.current = 'walking_back';
+          setInteractPhase(0);
         }
         break;
       }
@@ -118,7 +110,9 @@ export default function WalkingAgent({
         const dir = home.clone().sub(pos);
         const dist = dir.length();
 
-        if (dist < ARRIVAL_THRESHOLD) {
+        facingAngleRef.current = Math.atan2(dir.x, dir.z);
+
+        if (dist < 0.3) {
           pos.copy(home);
           phaseRef.current = 'home';
           syncState('idle', false);
@@ -132,31 +126,35 @@ export default function WalkingAgent({
       }
 
       case 'home':
-      default: {
-        // Snap to current home position (it may have shifted).
+      default:
         pos.set(...homeRef.current);
         syncState('idle', false);
         break;
-      }
     }
 
-    // Apply position to the group ref directly — no React re-render needed
-    // for spatial updates, only for animation-state changes consumed by children.
     if (group) {
       group.position.set(pos.x, pos.y, pos.z);
+      // Rotate to face direction of travel
+      if (phaseRef.current !== 'home') {
+        group.rotation.y = facingAngleRef.current;
+      } else {
+        // Smoothly return to default facing
+        group.rotation.y += (0 - group.rotation.y) * 0.05;
+      }
     }
   });
 
-  // Provide current tuple for render-prop consumers that need it (e.g. beams).
-  const currentPosition: [number, number, number] = [
-    posRef.current.x,
-    posRef.current.y,
-    posRef.current.z,
-  ];
+  const currentPosition: [number, number, number] = [posRef.current.x, posRef.current.y, posRef.current.z];
 
   return (
     <group ref={groupRef}>
-      {children({ currentPosition, animationState: animState, isWalking })}
+      {children({
+        currentPosition,
+        animationState: animState,
+        isWalking,
+        facingAngle: facingAngleRef.current,
+        interactPhase,
+      })}
     </group>
   );
 }

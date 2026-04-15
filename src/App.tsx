@@ -70,9 +70,9 @@ interface ActiveBeam {
   startTime: number;
 }
 
-interface WalkCommand {
-  agentId: string;
+interface WalkInfo {
   targetPosition: [number, number, number];
+  color: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ export function App() {
   const { agents, interactions, swarm, connected } = useAgentData();
   const [selectedAgent, setSelectedAgent] = useState<AgentState | null>(null);
   const [activeBeams, setActiveBeams] = useState<ActiveBeam[]>([]);
-  const [walkCommands, setWalkCommands] = useState<Map<string, [number, number, number]>>(new Map());
+  const [walkCommands, setWalkCommands] = useState<Map<string, WalkInfo>>(new Map());
 
   const agentPositions = useRef(new Map<string, [number, number, number]>());
   const processedInteractionIds = useRef(new Set<string>());
@@ -142,7 +142,10 @@ export function App() {
 
       // Physical interactions → source agent walks to target
       if (event.priority === 'physical' && toPos) {
-        newWalks.set(event.sourceAgentId, toPos);
+        newWalks.set(event.sourceAgentId, {
+          targetPosition: toPos,
+          color: BEAM_COLORS[event.type] ?? '#60a5fa',
+        });
       }
     }
 
@@ -192,13 +195,14 @@ export function App() {
 
           {agentArray.map((agent) => {
             const pos = agentPositions.current.get(agent.id)!;
-            const walkTarget = walkCommands.get(agent.id) ?? null;
+            const walkInfo = walkCommands.get(agent.id);
             return (
               <AgentNode
                 key={agent.id}
                 agentState={agent}
                 position={pos}
-                walkTarget={walkTarget}
+                walkTarget={walkInfo?.targetPosition ?? null}
+                interactionColor={walkInfo?.color}
                 onSelect={setSelectedAgent}
                 onWalkComplete={() => handleWalkComplete(agent.id)}
               />
