@@ -18,21 +18,21 @@ import KeybindsOverlay from './components/KeybindsOverlay';
 // ---------------------------------------------------------------------------
 
 const AGENT_POSITIONS: [number, number, number][] = [
-  [0, 0, 0],       // 0: center (coordinator)
-  [-8, 0, -6],     // 1
-  [8, 0, -6],      // 2
-  [-10, 0, 4],     // 3
-  [10, 0, 4],      // 4
-  [0, 0, 10],      // 5
-  [-6, 0, -12],    // 6
-  [6, 0, -12],     // 7
-  [-14, 0, 0],     // 8
-  [14, 0, 0],      // 9
-  [-8, 0, 12],     // 10
-  [8, 0, 12],      // 11
-  [0, 0, -10],     // 12
-  [-12, 0, -10],   // 13
-  [12, 0, -10],    // 14
+  [0, 0, 0],
+  [-10, 0, -8],
+  [10, 0, -8],
+  [-14, 0, 4],
+  [14, 0, 4],
+  [0, 0, 12],
+  [-8, 0, -16],
+  [8, 0, -16],
+  [-18, 0, 0],
+  [18, 0, 0],
+  [-10, 0, 14],
+  [10, 0, 14],
+  [0, 0, -12],
+  [-16, 0, -12],
+  [16, 0, -12],
 ];
 
 const BEAM_COLORS: Record<string, string> = {
@@ -70,44 +70,33 @@ interface ActiveBeam {
   startTime: number;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function assignPosition(index: number): [number, number, number] {
-  if (index < AGENT_POSITIONS.length) {
-    return AGENT_POSITIONS[index];
-  }
-  // Fallback: place in a ring beyond the predefined positions
-  const ring = Math.ceil(Math.sqrt(index - AGENT_POSITIONS.length + 1));
-  const angle =
-    ((index - AGENT_POSITIONS.length) / 6) * Math.PI * 2;
-  const radius = ring * 6;
-  return [
-    Math.round(Math.cos(angle) * radius),
-    0,
-    Math.round(Math.sin(angle) * radius),
-  ];
+interface WalkCommand {
+  agentId: string;
+  targetPosition: [number, number, number];
 }
 
 // ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 
+function assignPosition(index: number): [number, number, number] {
+  if (index < AGENT_POSITIONS.length) return AGENT_POSITIONS[index];
+  const ring = Math.ceil(Math.sqrt(index - AGENT_POSITIONS.length + 1));
+  const angle = ((index - AGENT_POSITIONS.length) / 6) * Math.PI * 2;
+  const radius = ring * 8;
+  return [Math.round(Math.cos(angle) * radius), 0, Math.round(Math.sin(angle) * radius)];
+}
+
 export function App() {
   const { agents, interactions, swarm, connected } = useAgentData();
   const [selectedAgent, setSelectedAgent] = useState<AgentState | null>(null);
   const [activeBeams, setActiveBeams] = useState<ActiveBeam[]>([]);
+  const [walkCommands, setWalkCommands] = useState<Map<string, [number, number, number]>>(new Map());
 
-  // Stable map from agent id -> world position
   const agentPositions = useRef(new Map<string, [number, number, number]>());
-
-  // Track which interaction event ids we have already converted to beams
   const processedInteractionIds = useRef(new Set<string>());
 
-  // --------------------------------------------------
-  // Assign positions to agents (stable across renders)
-  // --------------------------------------------------
+  // Assign positions
   const agentArray = Array.from(agents.values());
   let nextIndex = agentPositions.current.size;
   for (const agent of agentArray) {
@@ -117,85 +106,83 @@ export function App() {
     }
   }
 
-  // --------------------------------------------------
-  // Keep selectedAgent in sync with latest data
-  // --------------------------------------------------
+  // Keep selectedAgent in sync
   useEffect(() => {
     if (selectedAgent) {
       const updated = agents.get(selectedAgent.id);
-      if (updated) {
-        setSelectedAgent(updated);
-      } else {
-        setSelectedAgent(null);
-      }
+      if (updated) setSelectedAgent(updated);
+      else setSelectedAgent(null);
     }
   }, [agents]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --------------------------------------------------
-  // Convert interaction events into timed beams
-  // --------------------------------------------------
+  // Convert interactions → beams + walk commands
   useEffect(() => {
     if (interactions.length === 0) return;
 
     const newBeams: ActiveBeam[] = [];
+    const newWalks = new Map(walkCommands);
+
     for (const event of interactions) {
       if (processedInteractionIds.current.has(event.id)) continue;
       processedInteractionIds.current.add(event.id);
 
+      const fromPos = agentPositions.current.get(event.sourceAgentId);
+      const toPos = agentPositions.current.get(event.targetAgentId);
+
+      // Create beam
       newBeams.push({
         id: event.id,
         sourceAgentId: event.sourceAgentId,
         targetAgentId: event.targetAgentId,
         color: BEAM_COLORS[event.type] ?? '#60a5fa',
         life: 0,
-        maxLife: 1.5,
+        maxLife: 4, // longer beams so you can see them
         startTime: Date.now(),
       });
+
+      // Physical interactions → source agent walks to target
+      if (event.priority === 'physical' && toPos) {
+        newWalks.set(event.sourceAgentId, toPos);
+      }
     }
 
     if (newBeams.length > 0) {
-      setActiveBeams((prev) => [...prev, ...newBeams]);
+      setActiveBeams(prev => [...prev, ...newBeams]);
     }
-  }, [interactions]);
+    if (newWalks.size !== walkCommands.size) {
+      setWalkCommands(newWalks);
+    }
+  }, [interactions]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --------------------------------------------------
-  // Beam lifecycle: age beams and remove expired ones
-  // --------------------------------------------------
+  // Beam lifecycle
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveBeams((prev) => {
+      setActiveBeams(prev => {
         const now = Date.now();
         const next: ActiveBeam[] = [];
         for (const beam of prev) {
           const elapsed = (now - beam.startTime) / 1000;
-          if (elapsed < beam.maxLife) {
-            next.push({ ...beam, life: elapsed });
-          }
+          if (elapsed < beam.maxLife) next.push({ ...beam, life: elapsed });
         }
         return next.length === prev.length ? prev : next;
       });
     }, 50);
-
     return () => clearInterval(interval);
   }, []);
 
-  // --------------------------------------------------
-  // Derived values
-  // --------------------------------------------------
+  // Handle walk completion — remove the walk command for that agent
+  const handleWalkComplete = useCallback((agentId: string) => {
+    setWalkCommands(prev => {
+      const next = new Map(prev);
+      next.delete(agentId);
+      return next;
+    });
+  }, []);
+
   const envColor = ENV_COLORS[swarm.environment] ?? ENV_COLORS.active;
 
-  // --------------------------------------------------
-  // Filter change handler
-  // --------------------------------------------------
-  const handleFilterChange = useCallback(
-    // Filtering is a future enhancement; orbit controls handle zoom natively.
-    (_categories: Set<AgentCategory>) => {},
-    [],
-  );
+  const handleFilterChange = useCallback((_categories: Set<AgentCategory>) => {}, []);
 
-  // --------------------------------------------------
-  // Render
-  // --------------------------------------------------
   return (
     <div className="w-screen h-screen relative">
       <SceneRoot swarmEnvironment={swarm.environment}>
@@ -203,20 +190,21 @@ export function App() {
           <Environment swarmEnvironment={swarm.environment} />
           <ParticleField color={envColor} count={200} />
 
-          {/* Agent nodes */}
           {agentArray.map((agent) => {
             const pos = agentPositions.current.get(agent.id)!;
+            const walkTarget = walkCommands.get(agent.id) ?? null;
             return (
               <AgentNode
                 key={agent.id}
                 agentState={agent}
                 position={pos}
+                walkTarget={walkTarget}
                 onSelect={setSelectedAgent}
+                onWalkComplete={() => handleWalkComplete(agent.id)}
               />
             );
           })}
 
-          {/* Interaction beams */}
           {activeBeams.map((beam) => {
             const fromPos = agentPositions.current.get(beam.sourceAgentId);
             const toPos = agentPositions.current.get(beam.targetAgentId);
@@ -237,7 +225,6 @@ export function App() {
         </PerformanceProvider>
       </SceneRoot>
 
-      {/* HTML overlays */}
       <SwarmOverview swarm={swarm} connected={connected} />
       <Controls
         onZoomIn={() => {}}

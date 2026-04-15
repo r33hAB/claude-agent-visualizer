@@ -7,11 +7,14 @@ import VoxelCharacter from './VoxelCharacter';
 import Station3D from './Station3D';
 import ProgressRing3D from './ProgressRing3D';
 import AgentLabel from './AgentLabel';
+import WalkingAgent from './WalkingAgent';
 
 interface AgentNodeProps {
   agentState: AgentState;
   position: [number, number, number];
+  walkTarget: [number, number, number] | null;
   onSelect?: (agent: AgentState) => void;
+  onWalkComplete?: () => void;
 }
 
 const STATUS_TO_ANIMATION: Record<AgentState['status'], AnimationState> = {
@@ -23,8 +26,13 @@ const STATUS_TO_ANIMATION: Record<AgentState['status'], AnimationState> = {
   terminated: 'exiting',
 };
 
-export default function AgentNode({ agentState, position, onSelect }: AgentNodeProps) {
-  const groupRef = useRef<Group>(null);
+export default function AgentNode({
+  agentState,
+  position,
+  walkTarget,
+  onSelect,
+  onWalkComplete,
+}: AgentNodeProps) {
   const timeRef = useRef(0);
   const [hovered, setHovered] = useState(false);
 
@@ -34,7 +42,7 @@ export default function AgentNode({ agentState, position, onSelect }: AgentNodeP
     timeRef.current += delta;
   });
 
-  const animationState = STATUS_TO_ANIMATION[agentState.status];
+  const baseAnimState = STATUS_TO_ANIMATION[agentState.status];
   const speedMultiplier = 0.5 + (agentState.progress / 100) * 1.5;
 
   const handlePointerDown = useCallback(
@@ -53,49 +61,55 @@ export default function AgentNode({ agentState, position, onSelect }: AgentNodeP
     [],
   );
 
-  const handlePointerOut = useCallback(() => {
-    setHovered(false);
-  }, []);
+  const handlePointerOut = useCallback(() => setHovered(false), []);
 
   return (
     <group
-      ref={groupRef}
-      position={position}
       onPointerDown={handlePointerDown}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
-      {/* Station platform at ground level */}
-      <group position={[0, 0, 0]}>
+      {/* Station stays at home position — doesn't walk */}
+      <group position={position}>
         <Station3D
           category={agentState.category}
           progress={agentState.progress}
           time={timeRef.current}
         />
+        <group position={[0, 0.05, 0]}>
+          <ProgressRing3D progress={agentState.progress} />
+        </group>
       </group>
 
-      {/* Progress ring just above ground */}
-      <group position={[0, 0.05, 0]}>
-        <ProgressRing3D progress={agentState.progress} />
-      </group>
+      {/* Character walks via WalkingAgent */}
+      <WalkingAgent
+        homePosition={position}
+        targetPosition={walkTarget}
+        onReturned={onWalkComplete}
+      >
+        {({ animationState: walkAnim, isWalking }) => {
+          // If walking, use walk animation. Otherwise use status-based animation.
+          const finalAnim = isWalking ? walkAnim : baseAnimState;
 
-      {/* Character standing on the platform */}
-      <group position={[0, 0.6, 0]}>
-        <VoxelCharacter
-          category={agentState.category}
-          animationState={animationState}
-          speedMultiplier={speedMultiplier}
-        />
-      </group>
-
-      {/* Floating label above the character */}
-      <group position={[0, 2.8, 0]}>
-        <AgentLabel
-          name={agentState.name}
-          progress={agentState.progress}
-          status={agentState.status}
-        />
-      </group>
+          return (
+            <group position={[0, 0.6, 0]}>
+              <VoxelCharacter
+                category={agentState.category}
+                animationState={finalAnim}
+                speedMultiplier={speedMultiplier}
+              />
+              {/* Label follows the character */}
+              <group position={[0, 2.2, 0]}>
+                <AgentLabel
+                  name={agentState.name}
+                  progress={agentState.progress}
+                  status={isWalking ? 'walking' : agentState.status}
+                />
+              </group>
+            </group>
+          );
+        }}
+      </WalkingAgent>
     </group>
   );
 }
