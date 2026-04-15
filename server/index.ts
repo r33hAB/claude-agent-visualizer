@@ -1,9 +1,13 @@
 import express from 'express';
 import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import getPort from 'get-port';
 import open from 'open';
 import { McpBridge } from './mcp-bridge.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PREFERRED_PORT = 3847;
 const POLL_INTERVAL_MS = 1500;
@@ -61,9 +65,18 @@ async function main(): Promise<void> {
     }
   }, POLL_INTERVAL_MS);
 
+  // Serve built frontend in production mode
+  const distPath = join(__dirname, '..', 'dist');
+  app.use(express.static(distPath));
+
   // Health endpoint
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', clients: clients.size });
+  });
+
+  // SPA fallback (Express 5 requires named param for wildcard)
+  app.get('/{*splat}', (_req, res) => {
+    res.sendFile(join(distPath, 'index.html'));
   });
 
   httpServer.listen(port, () => {
