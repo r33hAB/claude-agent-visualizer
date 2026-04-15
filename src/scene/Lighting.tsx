@@ -16,10 +16,14 @@ interface LightingProps {
 }
 
 const TUBE_POSITIONS: [number, number, number][] = [
-  [-8, 12, -8],
-  [8, 12, -8],
-  [-8, 12, 8],
-  [8, 12, 8],
+  [-20, 28, -20],
+  [20, 28, -20],
+  [-20, 28, 20],
+  [20, 28, 20],
+  [0, 28, -30],
+  [0, 28, 30],
+  [-30, 28, 0],
+  [30, 28, 0],
 ];
 
 function NeonTube({ position, color }: { position: [number, number, number]; color: string }) {
@@ -58,19 +62,19 @@ export function Lighting({ swarmEnvironment }: LightingProps) {
 
   return (
     <>
-      <ambientLight color="#4466aa" intensity={0.15} />
-      <hemisphereLight color="#4466aa" groundColor="#1a0a2e" intensity={0.1} />
-      <directionalLight position={[5, 15, 5]} intensity={0.3} color="#aabbdd" />
+      <ambientLight color="#4466aa" intensity={0.2} />
+      <hemisphereLight color="#4466aa" groundColor="#1a0a2e" intensity={0.15} />
+      <directionalLight position={[10, 30, 10]} intensity={0.4} color="#aabbdd" />
       {TUBE_POSITIONS.map((pos, i) => (
         <NeonTube key={i} position={pos} color={color} />
       ))}
       <spotLight
-        position={[0, 14, 0]}
-        angle={0.6}
+        position={[0, 30, 0]}
+        angle={0.8}
         penumbra={0.5}
-        intensity={0.5}
+        intensity={0.8}
         color={color}
-        distance={30}
+        distance={60}
         decay={2}
       />
     </>

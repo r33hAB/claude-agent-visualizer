@@ -2,6 +2,11 @@ import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+const FLOOR_SIZE = 160;
+const GRID_SPACING = 4;
+const LINES_PER_AXIS = Math.floor(FLOOR_SIZE / GRID_SPACING) + 1;
+const TOTAL_LINES = LINES_PER_AXIS * 2;
+
 interface FloorGridProps {
   gridColor: string;
   pulseSpeed?: number;
@@ -9,32 +14,29 @@ interface FloorGridProps {
 
 export function FloorGrid({ gridColor, pulseSpeed = 1 }: FloorGridProps) {
   const gridRef = useRef<THREE.InstancedMesh>(null);
-  const lineCount = 42; // 21 lines per axis
-
-  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const half = FLOOR_SIZE / 2;
 
   const matrices = useMemo(() => {
     const m: THREE.Matrix4[] = [];
-    // X-direction lines (running along Z axis)
-    for (let i = 0; i <= 20; i++) {
-      const x = -40 + i * 4;
+    for (let i = 0; i < LINES_PER_AXIS; i++) {
+      const pos = -half + i * GRID_SPACING;
+      // X-direction line
       const mat4 = new THREE.Matrix4();
-      mat4.makeTranslation(x, 0.01, 0);
+      mat4.makeTranslation(pos, 0.01, 0);
       m.push(mat4);
     }
-    // Z-direction lines (running along X axis, rotated 90 degrees)
-    for (let i = 0; i <= 20; i++) {
-      const z = -40 + i * 4;
+    for (let i = 0; i < LINES_PER_AXIS; i++) {
+      const pos = -half + i * GRID_SPACING;
       const mat4 = new THREE.Matrix4();
       mat4.compose(
-        new THREE.Vector3(0, 0.01, z),
+        new THREE.Vector3(0, 0.01, pos),
         new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)),
         new THREE.Vector3(1, 1, 1),
       );
       m.push(mat4);
     }
     return m;
-  }, []);
+  }, [half]);
 
   useEffect(() => {
     if (!gridRef.current) return;
@@ -53,15 +55,13 @@ export function FloorGrid({ gridColor, pulseSpeed = 1 }: FloorGridProps) {
 
   return (
     <group>
-      {/* Main floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[80, 80]} />
+        <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
         <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.8} />
       </mesh>
 
-      {/* Grid lines */}
-      <instancedMesh ref={gridRef} args={[undefined, undefined, lineCount]}>
-        <boxGeometry args={[0.03, 0.02, 80]} />
+      <instancedMesh ref={gridRef} args={[undefined, undefined, TOTAL_LINES]} frustumCulled={false}>
+        <boxGeometry args={[0.03, 0.02, FLOOR_SIZE]} />
         <meshStandardMaterial
           color={gridColor}
           emissive={gridColor}
