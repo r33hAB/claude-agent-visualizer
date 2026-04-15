@@ -57,17 +57,17 @@ export function FloorGrid({ gridColor, pulseSpeed = 1 }: FloorGridProps) {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
-        <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.8} />
+        <meshStandardMaterial color="#1a2035" roughness={0.4} metalness={0.6} />
       </mesh>
 
       <instancedMesh ref={gridRef} args={[undefined, undefined, TOTAL_LINES]} frustumCulled={false}>
-        <boxGeometry args={[0.03, 0.02, FLOOR_SIZE]} />
+        <boxGeometry args={[0.02, 0.005, FLOOR_SIZE]} />
         <meshStandardMaterial
           color={gridColor}
           emissive={gridColor}
-          emissiveIntensity={0.4}
+          emissiveIntensity={0.1}
           transparent
-          opacity={0.6}
+          opacity={0.25}
         />
       </instancedMesh>
     </group>

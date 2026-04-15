@@ -75,7 +75,20 @@ function FreeCam() {
 
     let speed = 15 * dt;
     if (pressed.has('shiftleft') || pressed.has('shiftright')) speed *= 3;
+    const rotSpeed = 1.5 * dt;
 
+    // Camera rotation via J/L (yaw) and I/K (pitch)
+    let rotated = false;
+    if (pressed.has('keyj') || pressed.has('arrowleft')) { euler.current.y += rotSpeed; rotated = true; }
+    if (pressed.has('keyl') || pressed.has('arrowright')) { euler.current.y -= rotSpeed; rotated = true; }
+    if (pressed.has('keyi')) { euler.current.x += rotSpeed; rotated = true; }
+    if (pressed.has('keyk')) { euler.current.x -= rotSpeed; rotated = true; }
+    if (rotated) {
+      euler.current.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, euler.current.x));
+      camera.quaternion.setFromEuler(euler.current);
+    }
+
+    // Movement via WASD
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
     forward.y = 0;
@@ -85,10 +98,10 @@ function FreeCam() {
     right.crossVectors(forward, camera.up).normalize();
 
     const move = new THREE.Vector3();
-    if (pressed.has('keyw') || pressed.has('arrowup')) move.add(forward.clone().multiplyScalar(speed));
-    if (pressed.has('keys') || pressed.has('arrowdown')) move.add(forward.clone().multiplyScalar(-speed));
-    if (pressed.has('keya') || pressed.has('arrowleft')) move.add(right.clone().multiplyScalar(-speed));
-    if (pressed.has('keyd') || pressed.has('arrowright')) move.add(right.clone().multiplyScalar(speed));
+    if (pressed.has('keyw')) move.add(forward.clone().multiplyScalar(speed));
+    if (pressed.has('keys')) move.add(forward.clone().multiplyScalar(-speed));
+    if (pressed.has('keya')) move.add(right.clone().multiplyScalar(-speed));
+    if (pressed.has('keyd')) move.add(right.clone().multiplyScalar(speed));
     if (pressed.has('space') || pressed.has('keye')) move.y += speed;
     if (pressed.has('keyq')) move.y -= speed;
 
@@ -106,7 +119,7 @@ interface SceneRootProps {
 export function SceneRoot({ swarmEnvironment, children }: SceneRootProps) {
   return (
     <Canvas
-      camera={{ position: [25, 20, 25], fov: 60, near: 0.1, far: 1000 }}
+      camera={{ position: [18, 12, 18], fov: 65, near: 0.1, far: 1000 }}
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,

@@ -61,19 +61,21 @@ export default function AgentNode({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
-      {/* Station stays at home — doesn't walk */}
-      <group position={position}>
+      {/* Station at home — offset down so equipment doesn't clip character */}
+      <group position={[position[0], position[1] - 0.1, position[2]]}>
         <Station3D
           category={agentState.category}
           progress={agentState.progress}
           time={timeRef.current}
         />
-        <group position={[0, 0.05, 0]}>
-          <ProgressRing3D progress={agentState.progress} />
-        </group>
       </group>
 
-      {/* Character walks via WalkingAgent */}
+      {/* Progress ring at ground level */}
+      <group position={[position[0], position[1] + 0.05, position[2]]}>
+        <ProgressRing3D progress={agentState.progress} />
+      </group>
+
+      {/* Character walks via WalkingAgent — raised well above station */}
       <WalkingAgent
         homePosition={position}
         targetPosition={walkTarget}
@@ -84,14 +86,15 @@ export default function AgentNode({
 
           return (
             <>
-              <group position={[0, 0.6, 0]}>
+              {/* Character stands on top of the station platform */}
+              <group position={[0, 1.8, 0]}>
                 <VoxelCharacter
                   category={agentState.category}
                   animationState={finalAnim}
                   speedMultiplier={speedMultiplier}
                 />
-                {/* Label follows the character */}
-                <group position={[0, 2.2, 0]}>
+                {/* Label above character head */}
+                <group position={[0, 4.5, 0]}>
                   <AgentLabel
                     name={agentState.name}
                     progress={agentState.progress}
@@ -100,7 +103,6 @@ export default function AgentNode({
                 </group>
               </group>
 
-              {/* Interaction visual effect — plays during the interaction phase */}
               <InteractionEffect
                 active={interactPhase > 0}
                 phase={interactPhase}

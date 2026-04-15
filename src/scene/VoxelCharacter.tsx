@@ -354,7 +354,7 @@ export default function VoxelCharacter({ category, animationState, speedMultipli
    *     R hip → R knee → R ankle (same)
    */
   return (
-    <group scale={2}>
+    <group scale={3}>
       <group ref={rootRef}>
         {/* === BODY (torso pivot) === */}
         <group ref={bodyRef} position={[0, 0.65, 0]}>

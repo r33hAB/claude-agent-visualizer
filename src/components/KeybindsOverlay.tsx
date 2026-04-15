@@ -30,11 +30,13 @@ export default function KeybindsOverlay() {
         <div className="border-b border-lab-border pb-2 mb-2">
           <div className="text-gray-500 font-bold mb-1.5">Camera</div>
           <Row keys="W A S D" desc="Move" />
-          <Row keys="Mouse Drag" desc="Look around" />
+          <Row keys="J L" desc="Rotate left/right" />
+          <Row keys="I K" desc="Look up/down" />
+          <Row keys="Mouse Drag" desc="Free look" />
           <Row keys="Scroll" desc="Zoom" />
           <Row keys="E / Space" desc="Move up" />
           <Row keys="Q" desc="Move down" />
-          <Row keys="Shift" desc="Move faster" />
+          <Row keys="Shift" desc="Speed boost" />
         </div>
 
         <div>
