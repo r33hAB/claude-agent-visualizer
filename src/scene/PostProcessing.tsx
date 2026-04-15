@@ -12,7 +12,7 @@ export function PostProcessing() {
   if (tier === 3) {
     return (
       <EffectComposer>
-        <Bloom intensity={0.3} luminanceThreshold={0.5} mipmapBlur />
+        <Bloom intensity={0.15} luminanceThreshold={0.6} mipmapBlur />
       </EffectComposer>
     );
   }
@@ -20,17 +20,17 @@ export function PostProcessing() {
   if (tier === 2) {
     return (
       <EffectComposer>
-        <Bloom intensity={0.6} luminanceThreshold={0.4} mipmapBlur />
-        <Vignette offset={0.3} darkness={0.4} blendFunction={BlendFunction.NORMAL} />
+        <Bloom intensity={0.25} luminanceThreshold={0.5} mipmapBlur />
+        <Vignette offset={0.3} darkness={0.3} blendFunction={BlendFunction.NORMAL} />
       </EffectComposer>
     );
   }
 
-  // Tier 1
+  // Tier 1 — subtle bloom, not blinding
   return (
     <EffectComposer>
-      <Bloom intensity={0.8} luminanceThreshold={0.3} luminanceSmoothing={0.4} mipmapBlur />
-      <Vignette offset={0.3} darkness={0.5} blendFunction={BlendFunction.NORMAL} />
+      <Bloom intensity={0.35} luminanceThreshold={0.4} luminanceSmoothing={0.4} mipmapBlur />
+      <Vignette offset={0.3} darkness={0.4} blendFunction={BlendFunction.NORMAL} />
     </EffectComposer>
   );
 }

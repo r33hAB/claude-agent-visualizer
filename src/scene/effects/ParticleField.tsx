@@ -87,9 +87,9 @@ export function ParticleField({
     () =>
       new THREE.MeshStandardMaterial({
         emissive: new THREE.Color(color),
-        emissiveIntensity: 2,
+        emissiveIntensity: 0.5,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.4,
         color: new THREE.Color(color),
       }),
     [color],

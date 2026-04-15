@@ -15,15 +15,16 @@ interface LightingProps {
   swarmEnvironment: string;
 }
 
+// Neon tubes spread across the ceiling
 const TUBE_POSITIONS: [number, number, number][] = [
-  [-20, 28, -20],
-  [20, 28, -20],
-  [-20, 28, 20],
-  [20, 28, 20],
-  [0, 28, -30],
-  [0, 28, 30],
-  [-30, 28, 0],
-  [30, 28, 0],
+  [-20, 25, -20],
+  [20, 25, -20],
+  [-20, 25, 20],
+  [20, 25, 20],
+  [0, 25, -30],
+  [0, 25, 30],
+  [-30, 25, 0],
+  [30, 25, 0],
 ];
 
 function NeonTube({ position, color }: { position: [number, number, number]; color: string }) {
@@ -33,26 +34,21 @@ function NeonTube({ position, color }: { position: [number, number, number]; col
   useFrame(({ clock }) => {
     if (meshRef.current) {
       const mat = meshRef.current.material as THREE.MeshStandardMaterial;
-      const flicker = 0.8 + Math.sin(clock.elapsedTime * 3 + position[0]) * 0.2;
-      mat.emissiveIntensity = flicker;
+      mat.emissiveIntensity = 0.8 + Math.sin(clock.elapsedTime * 3 + position[0]) * 0.2;
     }
     if (lightRef.current) {
-      const flicker = 1.5 + Math.sin(clock.elapsedTime * 3 + position[0]) * 0.5;
-      lightRef.current.intensity = flicker;
+      lightRef.current.intensity = 3 + Math.sin(clock.elapsedTime * 3 + position[0]) * 0.5;
     }
   });
 
   return (
     <group position={position}>
       <mesh ref={meshRef} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.05, 0.05, 8, 8]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={1}
-        />
+        <cylinderGeometry args={[0.08, 0.08, 12, 8]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.8} />
       </mesh>
-      <pointLight ref={lightRef} color={color} intensity={2} distance={25} decay={2} />
+      {/* Much bigger range so light actually reaches the floor */}
+      <pointLight ref={lightRef} color={color} intensity={3} distance={60} decay={1.5} />
     </group>
   );
 }
@@ -62,21 +58,37 @@ export function Lighting({ swarmEnvironment }: LightingProps) {
 
   return (
     <>
-      <ambientLight color="#4466aa" intensity={0.2} />
-      <hemisphereLight color="#4466aa" groundColor="#1a0a2e" intensity={0.15} />
-      <directionalLight position={[10, 30, 10]} intensity={0.4} color="#aabbdd" />
+      {/* Strong ambient so nothing is pitch black */}
+      <ambientLight color="#aabbcc" intensity={0.6} />
+
+      {/* Hemisphere gives directional ambient — sky above, dark below */}
+      <hemisphereLight color="#bbccdd" groundColor="#223344" intensity={0.4} />
+
+      {/* Main overhead directional — illuminates everything evenly */}
+      <directionalLight position={[15, 40, 15]} intensity={0.8} color="#ccddee" />
+      <directionalLight position={[-15, 40, -15]} intensity={0.4} color="#aabbcc" />
+
+      {/* Neon ceiling tubes */}
       {TUBE_POSITIONS.map((pos, i) => (
         <NeonTube key={i} position={pos} color={color} />
       ))}
+
+      {/* Wide center spotlight flooding the main area */}
       <spotLight
         position={[0, 30, 0]}
-        angle={0.8}
-        penumbra={0.5}
-        intensity={0.8}
-        color={color}
-        distance={60}
-        decay={2}
+        angle={1.2}
+        penumbra={0.8}
+        intensity={1.5}
+        color="#ddeeff"
+        distance={80}
+        decay={1.5}
       />
+
+      {/* 4 ground-level fill lights at the agent area corners */}
+      <pointLight position={[-15, 3, -15]} color="#4466aa" intensity={1} distance={30} decay={2} />
+      <pointLight position={[15, 3, -15]} color="#4466aa" intensity={1} distance={30} decay={2} />
+      <pointLight position={[-15, 3, 15]} color="#4466aa" intensity={1} distance={30} decay={2} />
+      <pointLight position={[15, 3, 15]} color="#4466aa" intensity={1} distance={30} decay={2} />
     </>
   );
 }

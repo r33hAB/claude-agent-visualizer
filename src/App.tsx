@@ -191,7 +191,7 @@ export function App() {
       <SceneRoot swarmEnvironment={swarm.environment}>
         <PerformanceProvider>
           <Environment swarmEnvironment={swarm.environment} />
-          <ParticleField color={envColor} count={200} />
+          <ParticleField color={envColor} count={40} speed={0.5} />
 
           {agentArray.map((agent) => {
             const pos = agentPositions.current.get(agent.id)!;
