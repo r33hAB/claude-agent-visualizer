@@ -1,0 +1,2 @@
+[2026-04-15T10:03:07.222Z] [INFO] Daemon already running (PID: 11114), skipping start
+[2026-04-15T10:03:07.222Z] [INFO] Claude Code not found - AI workers will run in local fallback mode
