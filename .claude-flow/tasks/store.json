@@ -1,0 +1,31 @@
+{
+  "tasks": {
+    "task-1776247113353-rtq6jr": {
+      "taskId": "task-1776247113353-rtq6jr",
+      "type": "security",
+      "description": "Scan auth module for vulnerabilities",
+      "priority": "high",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-04-15T09:58:33.353Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1776247129106-6cxqu9": {
+      "taskId": "task-1776247129106-6cxqu9",
+      "type": "research",
+      "description": "Research OAuth2 best practices",
+      "priority": "low",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-04-15T09:58:49.106Z",
+      "startedAt": null,
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

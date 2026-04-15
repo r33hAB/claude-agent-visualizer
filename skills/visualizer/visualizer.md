@@ -1,46 +1,54 @@
 ---
 name: visualizer
-description: Launch the isometric agent visualizer — shows animated characters for all running claude-flow agents with real-time progress and interactions
+description: Launch the 3D agent visualizer — shows animated voxel characters for all running claude-flow agents in a cyberpunk command center
 ---
 
 ## Agent Visualizer
 
-Launches a local web server and opens a browser window showing an isometric tech-lab visualization of all running agents.
-
-### Launch
-
-Run the following to start the visualizer:
+When this skill is invoked, immediately run the following command to start the visualizer:
 
 ```bash
-cd /Users/r33hab/Documents/git/claude-agent-visualizer && npm run build && npx tsx server/index.ts
+cd /Users/r33hab/Documents/git/claude-agent-visualizer && npm run build && npx tsx server/index.ts --live &
 ```
 
-For development with hot reload:
+Then tell the user: "Visualizer launched at http://localhost:3847 — open it in your browser."
+
+If the user says "mock" or "demo", use this instead (no --live flag):
 
 ```bash
-cd /Users/r33hab/Documents/git/claude-agent-visualizer && npm start
+cd /Users/r33hab/Documents/git/claude-agent-visualizer && npm run build && npx tsx server/index.ts &
 ```
 
-This starts both the WebSocket bridge server (connects to claude-flow MCP) and the Vite dev server, then opens your browser automatically.
+To stop the visualizer:
+
+```bash
+kill $(lsof -ti:3847) 2>/dev/null
+```
 
 ### What it shows
 
-- Each agent as an animated isometric character at a category-specific workstation
-- Real-time progress rings and workspace evolution
-- Physical movement animations for major agent interactions (task handoffs, reviews)
-- Connection beams for background communication (status updates, memory sharing)
-- Reactive environment that responds to swarm state (lighting, particles, screen shake)
-- Click any agent for detailed panel: progress, task, logs, dependencies
+- 3D voxel characters with full joint articulation (shoulders, elbows, wrists, hips, knees, ankles)
+- 10 agent categories with unique head mods, held props, and workstation equipment
+- Agents physically walk to each other during interactions with visual handoff effects
+- Cyberpunk command center with neon lighting, holographic displays, and ambient particles
+- Adaptive post-processing (bloom, vignette) that scales with GPU performance
+- Real-time progress rings, energy beams between interacting agents
 
 ### Controls
 
-- **Pan:** Click and drag
-- **Zoom:** Mouse scroll wheel
-- **Select agent:** Click on character
-- **Filter:** Use category filter in bottom-left
-- **Reset view:** Click Reset button
+| Key | Action |
+|-----|--------|
+| W/A/S/D | Move camera |
+| J/L | Rotate left/right |
+| I/K | Look up/down |
+| Mouse drag | Free look |
+| Scroll | Zoom in/out |
+| E / Space | Move up |
+| Q | Move down |
+| Shift | Speed boost |
+| Click | Select agent |
 
-### Agent Categories (10)
+### Modes
 
-Core: Coder, Reviewer, Planner, Security, Researcher, Coordinator
-Extended: Tester, DevOps, Debugger, Designer
+- `--live` connects to the running claude-flow daemon and shows real agents
+- Default (no flag) runs a demo with 8 simulated agents
